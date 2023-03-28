@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <integer-array name="visa_icc">
+        <item>0x5F2A</item>
+        <item>0x82</item>
+        <item>0x95</item>
+        <item>0x9A</item>
+        <item>0x9C</item>
+        <item>0x9F1E</item>
+        <item>0x9F02</item>
+        <item>0x9F03</item>
+        <item>0x9F1A</item>
+        <item>0x9F26</item>
+        <item>0x9F27</item>
+        <item>0x9F33</item>
+        <item>0x9F36</item>
+        <item>0x9F37</item>
+        <item>0x9F41</item>
+        <item>0x5F34</item>
+        <item>0x9F10</item>
+        <item>0x9F6E</item>
+        <item>0x9F35</item>
+    </integer-array>
+    <integer-array name="visa_picc">
+        <item>0x5F2A</item>
+        <item>0x82</item>
+        <item>0x95</item>
+        <item>0x9A</item>
+        <item>0x9C</item>
+        <item>0x9F66</item>
+        <item>0x9F02</item>
+        <item>0x9F03</item>
+        <item>0x9F10</item>
+        <item>0x9F1A</item>
+        <item>0x9F1E</item>
+        <item>0x9F26</item>
+        <item>0x9F27</item>
+        <item>0x9F33</item>
+        <item>0x9F36</item>
+        <item>0x9F37</item>
+        <item>0x9F41</item>
+        <item>0x5F34</item>
+        <item>0x9F6E</item>
+        <item>0x9F35</item>
+    </integer-array>
+
+    <integer-array name="mc_icc">
+        <item>0x5F2A</item>
+        <item>0x82</item>
+        <item>0x95</item>
+        <item>0x9A</item>
+        <item>0x9C</item>
+        <item>0x9F1E</item>
+        <item>0x9F02</item>
+        <item>0x9F03</item>
+        <item>0x9F10</item>
+        <item>0x9F1A</item>
+        <item>0x9F26</item>
+        <item>0x9F27</item>
+        <item>0x9F33</item>
+        <item>0x9F34</item>
+        <item>0x9F36</item>
+        <item>0x9F37</item>
+        <item>0x9F41</item>
+        <item>0x5F34</item>
+        <item>0x84</item>
+        <item>0x9F6E</item>
+        <item>0x9F35</item>
+    </integer-array>
+    <integer-array name="mc_picc">
+        <item>0x5F2A</item>
+        <item>0x82</item>
+        <item>0x95</item>
+        <item>0x9A</item>
+        <item>0x9C</item>
+        <item>0x9F02</item>
+        <item>0x9F03</item>
+        <item>0x9F10</item>
+        <item>0x9F1A</item>
+        <item>0x9F1E</item>
+        <item>0x9F26</item>
+        <item>0x9F27</item>
+        <item>0x9F33</item>
+        <item>0x9F34</item>
+        <item>0x9F36</item>
+        <item>0x9F37</item>
+        <item>0x9F41</item>
+        <item>0x5F34</item>
+        <item>0x84</item>
+        <item>0x9F6E</item>
+        <item>0x9F35</item>
+    </integer-array>
+</resources>

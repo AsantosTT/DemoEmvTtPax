@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">DemoEmvTtPax</string>
+    <string name="sdk_implementation">SDK Implementation</string>
+    <string name="printer">Printer</string>
+    <string name="test_printer">Test PAX Printer</string>
+    <string name="test_custom_printer">Test Custom Printer</string>
+    <string name="emv">EMV</string>
+    <string name="test_emv">TEST EMV</string>
+    <string name="printing_voucher_please_wait">Printing voucher, please wait</string>
+    <string name="voucher_visanet">VisaNet|TECNOLOGIA TRANSACCIONAL|VIA 5 5-45 Zona 10|AF.08042020|APPBOILE v.2.3.0 ST: 000052|GUATEMALA 11/01/2023 14:50:19|REF:301114000052 No.000052 AUT:039789|No. TARJETA: ************0119 EXP.**-**||COMPRA Q. 1.00||||(07) VALIDO SIN FIRMA|PAGADO ELECTRONICAMENTE !!|||........................................|              VISA CREDIT               |AID: A0000000031010                     </string>
+    <string name="insert_tap_swipe_card">INSERTE / PRESENTE / DESLICE\nTARJETA</string>
+    <string name="prompt_remove_card">POR FAVOR RETIRE SU TARJETA</string>
+    <string name="tags_emv">TAGs Emv</string>
+    <string name="log">Log</string>
+    <string name="prompt_fallback_insert_card">POR FAVOR INSERTE SU TARJETA</string>
+    <string name="msg_printer_status_ok">Printer Status OK</string>
+</resources>
