@@ -4,10 +4,17 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.os.Bundle
+import android.os.SystemClock
+import android.util.Log
 import android.view.View
 import android.widget.Toast
+import com.pax.dal.IFingerprintReader
+import com.pax.dal.IFingerprintReader.FingerprintListener
+import com.pax.dal.entity.FingerprintResult
+import com.pax.dal.exceptions.FingerprintDevException
 import com.pax.gl.page.IPage
 import com.pax.gl.page.PaxGLPage
+import com.pax.neptunelite.api.NeptuneLiteUser
 import com.techun.demoemvttpax.databinding.ActivityMainBinding
 import com.tecnologiatransaccional.ttpaxsdk.TTPaxApi
 import com.tecnologiatransaccional.ttpaxsdk.base.BaseActivity
@@ -22,6 +29,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.*
+
+private const val FEATURE_ANSI_INCITS_378_2004 = 1
+private const val FEATURE_ISO_IEC_19794_2_2005 = 2
+private const val FEATURE_ARATEK_BIONE = 3
+private const val FEATURE_RESERVED_1 = 4
+private const val FEATURE_RESERVED_2 = 5
+
+private const val IMAGE_TYPE_RAW = 1
+private const val IMAGE_TYPE_BMP = 2
+private const val IMAGE_TYPEWSQ = 3
+private const val IMAGE_ANSI_INCITS_381_2004 = 4
+private const val IMAGE_ISO_IEC_19794_4_2005 = 5
 
 class MainActivity : BaseActivity(), View.OnClickListener {
     //Pages
@@ -32,9 +52,15 @@ class MainActivity : BaseActivity(), View.OnClickListener {
 
     private lateinit var binding: ActivityMainBinding
 
+    private lateinit var reader: IFingerprintReader
+    private var test_time = 0
+    private var feature_t1: ByteArray? = null
+    private var feature_t2: ByteArray? = null
+    private var time = 0
+    private var time_ok = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding =ActivityMainBinding.inflate(layoutInflater)
+        binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         initComponents()
@@ -50,6 +76,28 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         sdkTTPax.init({
             //Exitoso
             Utils.logsUtils("PAX is working correctly")
+            try {
+                reader = NeptuneLiteUser.getInstance().getDal(this).fingerprintReader
+                Utils.logsUtils("reader is working correctly")
+
+                Timer("time").scheduleAtFixedRate(object : TimerTask() {
+                    override fun run() {
+                        runOnUiThread {
+                            if (time_ok) {
+                                if (time < 6) {
+                                    time++
+                                    logs(time.toString() + "S")
+                                    if (time == 6) {
+                                        logs("timeout")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }, 0, 1000L)
+            } catch (e: java.lang.Exception) {
+                Utils.logsUtils(e.printStackTrace().toString())
+            }
         }, {
             println("Error: $it")
         })
@@ -57,6 +105,13 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         binding.btnTestPaxPrinter.setOnClickListener(this)
         binding.btnTestCustomPrinter.setOnClickListener(this)
         binding.btnTestEmv.setOnClickListener(this)
+
+        binding.btnFingerPrintOpen.setOnClickListener(this)
+        binding.btnFingerPrintExtracImage.setOnClickListener(this)
+        binding.btnFingerPrintExtracFeature.setOnClickListener(this)
+        binding.btnFingerPrintCompareFeature.setOnClickListener(this)
+        binding.btnFingerPrintClose.setOnClickListener(this)
+        binding.btnFingerPrintStop.setOnClickListener(this)
     }
 
     override fun onDetectError(errorCode: DetectCardResult.ERetCode?) {
@@ -65,7 +120,8 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             binding.tvLogs.text = errorCode!!.name
             if (errorCode === DetectCardResult.ERetCode.FALLBACK) {
                 Utils.logsUtils(getString(R.string.prompt_fallback_insert_card))
-            } else Toast.makeText(applicationContext, errorCode.toString(), Toast.LENGTH_SHORT).show()
+            } else Toast.makeText(applicationContext, errorCode.toString(), Toast.LENGTH_SHORT)
+                .show()
         }
     }
 
@@ -401,13 +457,21 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         proccessOnlineResponse()
     }
 
+    private fun logs(msg: String?) {
+//        binding.tvLogs.text = msg
+
+        Log.d("logs-demo-app", "$msg")
+        binding.tvLogs.append("$msg \n")
+    }
+
     override fun onClick(v: View?) {
         val id = v?.id
         binding.tvTags.text = ""
         binding.tvLogs.text = ""
         when (id) {
+            //Printer
             R.id.btnTestPaxPrinter -> {
-                progressbar(true)
+                progressbar(true, getString(R.string.printing_voucher_please_wait))
                 GlobalScope.launch {
                     try {
                         val bitmap = generateVoucher()
@@ -429,10 +493,10 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                 }
             }
             R.id.btnTestCustomPrinter -> {
-                progressbar(true)
+                progressbar(true, getString(R.string.printing_voucher_please_wait))
                 GlobalScope.launch {
                     try {
-                        val voucher = getString(R.string.voucher_visanet)
+                        val voucher = getString(R.string.voucher_bi)
                         val bitmap = generateVoucherVisanet(voucher)
                         val status = sdkTTPax.printer(bitmap)
                         Utils.logsUtils("Printer Status: $status")
@@ -451,18 +515,146 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                     }
                 }
             }
+
+            //EMV
             R.id.btnTestEmv -> {
                 binding.tvPrinter.text = getString(R.string.insert_tap_swipe_card)
-                progressbar(true)
+                progressbar(true,getString(R.string.emv))
                 val amount = 5000L
                 initEmvTransaction(amount)
+            }
+
+            //fingerprint
+            // 1. call the fingerOpen function to open the fingerprint function;
+            // 2. call the setTimeOut function to set the timeout according to the test data;.
+            // 3. Put the fingerprint in the induction area, call fingerStart function to get the fingerprint information;
+            // 4. call fingerStop function to stop acquiring fingerprint information and move the fingerprint away from the sensing area;
+            // 5. call fingerStop function to stop acquiring fingerprint information and move the fingerprint away from the sensing area
+            // 6. call fingerClose function to close the fingerprint module.
+            // The fingerprint leaves the sensing area, repeat steps 1-5 cnt times
+            R.id.btnFingerPrintOpen -> {
+                try {
+                    reader.open()
+                } catch (e: FingerprintDevException) {
+                    logs("App" + e.message)
+                    e.printStackTrace()
+                }
+            }
+            R.id.btnFingerPrintExtracImage -> {
+                logs("Extract Image")
+                time = 0
+                time_ok = true
+                progressbar(true,getString(R.string.press_fingerprint))
+
+
+                try {
+                    reader.extractImage(
+                        IMAGE_TYPE_RAW,
+                        10,
+                        object : FingerprintListener {
+                            override fun onError(i: Int) {
+                                logs("Error: $i")
+                            }
+
+                            override fun onSuccess(fingerprintResult: FingerprintResult) {
+                                val img = fingerprintResult.captureImage
+                                GlobalScope.launch {
+                                    withContext(Dispatchers.Main) {
+                                        if (img != null) {
+                                            val code = toHexString(img)
+                                            logs("img size: ${img.size}")
+                                            logs(code)
+                                            progressbar(false)
+                                        } else {
+                                            logs("img is null")
+                                            progressbar(false)
+                                        }
+                                    }
+                                }
+                            }
+                        })
+                } catch (e: java.lang.Exception) {
+                    logs("App" + e.message)
+                }
+            }
+            R.id.btnFingerPrintExtracFeature -> {
+                try {
+                    reader.extractFeature(
+                        FEATURE_ANSI_INCITS_378_2004,
+                        object : FingerprintListener {
+                            override fun onError(i: Int) {}
+                            override fun onSuccess(fingerprintResult: FingerprintResult) {
+                                val feature = fingerprintResult.featureCode
+                                runOnUiThread { logs(toHexString(feature)) }
+                            }
+                        })
+                } catch (e: FingerprintDevException) {
+                    e.printStackTrace()
+                }
+            }
+            R.id.btnFingerPrintCompareFeature -> {
+                if (test_time == 0) {
+                    logs("Press fingerprints")
+                }
+
+                try {
+                    reader.extractFeature(2, listener)
+                } catch (e: FingerprintDevException) {
+                    logs(e.printStackTrace().toString())
+                    e.printStackTrace()
+                }
+            }
+            R.id.btnFingerPrintClose -> {
+                try {
+                    reader.close()
+                } catch (e: java.lang.Exception) {
+                    Log.d("PaxFingerService", "App" + e.message)
+                    logs("App" + e.message)
+                }
+            }
+            R.id.btnFingerPrintStop -> {
+                try {
+                    reader.stop()
+                } catch (e: FingerprintDevException) {
+                    e.printStackTrace()
+                }
             }
         }
     }
 
-    private fun progressbar(visibility: Boolean) {
-        binding.progressBarCircular.visibility = if (visibility) View.VISIBLE else View.GONE
-        binding.tvPrinter.visibility = if (visibility) View.VISIBLE else View.GONE
+    private var listener: FingerprintListener = object : FingerprintListener {
+        override fun onError(i: Int) {
+            runOnUiThread { logs("Err$i") }
+        }
+
+        override fun onSuccess(fingerprintResult: FingerprintResult) {
+            if (test_time == 0) {
+                feature_t1 = fingerprintResult.featureCode
+                test_time = 1
+                runOnUiThread { logs("Press the fingerprint again") }
+                SystemClock.sleep(1500)
+                try {
+                    reader.extractFeature(2, this)
+                } catch (e: FingerprintDevException) {
+                    e.printStackTrace()
+                }
+            } else if (test_time == 1) {
+                feature_t2 = fingerprintResult.featureCode
+                test_time = 0
+                runOnUiThread { logs("Compare...") }
+                try {
+                    val key = reader.compareFeature(4, feature_t1, feature_t2)
+                    runOnUiThread { logs("Compare result :$key") }
+                } catch (e: FingerprintDevException) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
+
+    private fun progressbar(visibility: Boolean, msg: String? = "") {
+        binding.clDialog.visibility = if (visibility) View.VISIBLE else View.GONE
+        binding.tvPrinter.text = msg
     }
 
     /**
@@ -476,29 +668,39 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         unit.text = "GLiPaxGlPage"
         page.addLine().addUnit().addUnit(unit)
             .addUnit(page.createUnit().setText("Test").setAlign(IPage.EAlign.RIGHT))
-        page.addLine().addUnit("商户存根",
+        page.addLine().addUnit(
+            "商户存根",
             Utils.FONT_NORMAL, IPage.EAlign.RIGHT,
             IPage.ILine.IUnit.TEXT_STYLE_BOLD
         )
-        page.addLine().addUnit("商户存根",
+        page.addLine().addUnit(
+            "商户存根",
             Utils.FONT_NORMAL, IPage.EAlign.RIGHT,
             IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE
         )
         page.addLine().addUnit(
             "商户存根",
-            Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_BOLD or IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE
+            Utils.FONT_NORMAL,
+            IPage.EAlign.RIGHT,
+            IPage.ILine.IUnit.TEXT_STYLE_BOLD or IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE
         )
-        page.addLine().addUnit("商户存根",
+        page.addLine().addUnit(
+            "商户存根",
             Utils.FONT_NORMAL, IPage.EAlign.RIGHT,
             IPage.ILine.IUnit.TEXT_STYLE_NORMAL
         )
         page.addLine().addUnit(
             "商户存根",
-            Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_BOLD or IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE, 1f
+            Utils.FONT_NORMAL,
+            IPage.EAlign.RIGHT,
+            IPage.ILine.IUnit.TEXT_STYLE_BOLD or IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE,
+            1f
         )
-        page.addLine().addUnit("商户存根",
+        page.addLine().addUnit(
+            "商户存根",
             Utils.FONT_NORMAL, IPage.EAlign.RIGHT,
-            IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f)
+            IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
+        )
         page.addLine().addUnit("-----------------------------------------", Utils.FONT_NORMAL)
         page.addLine().addUnit("商户名称: " + "百富计算机技术", Utils.FONT_NORMAL)
         page.addLine().addUnit("商户编号: " + "111111111111111", Utils.FONT_NORMAL)
@@ -512,27 +714,36 @@ class MainActivity : BaseActivity(), View.OnClickListener {
 
         page.addLine().addUnit("交易类型: " + "消费", Utils.FONT_BIG)
 
-        page.addLine().addUnit("流水号:", Utils.FONT_NORMAL).addUnit("批次号:", Utils.FONT_NORMAL, IPage.EAlign.RIGHT)
+        page.addLine().addUnit("流水号:", Utils.FONT_NORMAL)
+            .addUnit("批次号:", Utils.FONT_NORMAL, IPage.EAlign.RIGHT)
         page.addLine().addUnit("123456", Utils.FONT_NORMAL)
             .addUnit("000001", Utils.FONT_NORMAL, IPage.EAlign.RIGHT)
 
-        page.addLine().addUnit("授权码:",
+        page.addLine().addUnit(
+            "授权码:",
             Utils.FONT_NORMAL, IPage.EAlign.LEFT,
-            IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f)
-            .addUnit("参考号:",
+            IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
+        )
+            .addUnit(
+                "参考号:",
                 Utils.FONT_NORMAL, IPage.EAlign.RIGHT,
-                IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f)
-        page.addLine().addUnit("987654",
+                IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
+            )
+        page.addLine().addUnit(
+            "987654",
             Utils.FONT_BIGEST, IPage.EAlign.LEFT,
-            IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f)
-            .addUnit("012345678912",
+            IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
+        )
+            .addUnit(
+                "012345678912",
                 Utils.FONT_NORMAL, IPage.EAlign.RIGHT,
                 IPage.ILine.IUnit.TEXT_STYLE_NORMAL
             )
 
         page.addLine().addUnit("日期/时间:" + "2016/06/13 12:12:12", Utils.FONT_NORMAL)
         page.addLine().addUnit("金额:", Utils.FONT_BIG)
-        page.addLine().addUnit("RMB 1.00",
+        page.addLine().addUnit(
+            "RMB 1.00",
             Utils.FONT_BIG, IPage.EAlign.RIGHT,
             IPage.ILine.IUnit.TEXT_STYLE_BOLD
         )
@@ -591,7 +802,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         val unit = page.createUnit()
         unit.align = IPage.EAlign.CENTER
         unit.text = "GLiPaxGlPage"
-        val icon = BitmapFactory.decodeResource(resources, R.drawable.visalogousar)
+        val icon = BitmapFactory.decodeResource(resources, R.drawable.bilogo)
         val width = icon.width
         val height = icon.height
         val scaleWidth = (380f / width)
@@ -623,4 +834,3 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         return iPaxGLPage.pageToBitmap(page, widthFinal)
     }
 }
-

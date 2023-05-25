@@ -1,17 +1,59 @@
 <resources>
     <string name="app_name">DemoEmvTtPax</string>
     <string name="sdk_implementation">SDK Implementation</string>
+    <string name="sdk_implementation_cus">SDK Implementation Customs</string>
     <string name="printer">Printer</string>
     <string name="test_printer">Test PAX Printer</string>
     <string name="test_custom_printer">Test Custom Printer</string>
     <string name="emv">EMV</string>
     <string name="test_emv">TEST EMV</string>
+    <string name="test_fingerprint">FINGERPRINT</string>
+    <string name="test_fingerprint_open">FINGERPRINT OPEN</string>
+    <string name="test_fingerprint_extract_image">FINGERPRINT EXTRACT IMAGE</string>
+    <string name="test_fingerprint_extrac_feature">FINGERPRINT EXTRACT FEATURE</string>
+    <string name="test_fingerprint_compare_feature">FINGERPRINT COMPARE FEATURE</string>
+    <string name="test_fingerprint_stop">FINGERPRINT STOP</string>
+    <string name="test_fingerprint_close">FINGERPRINT CLOSE</string>
     <string name="printing_voucher_please_wait">Printing voucher, please wait</string>
     <string name="voucher_visanet">VisaNet|TECNOLOGIA TRANSACCIONAL|VIA 5 5-45 Zona 10|AF.08042020|APPBOILE v.2.3.0 ST: 000052|GUATEMALA 11/01/2023 14:50:19|REF:301114000052 No.000052 AUT:039789|No. TARJETA: ************0119 EXP.**-**||COMPRA Q. 1.00||||(07) VALIDO SIN FIRMA|PAGADO ELECTRONICAMENTE !!|||........................................|              VISA CREDIT               |AID: A0000000031010                     </string>
+    <string name="voucher_bi">BANCO INDUSTRIAL S.A.|NOMBRE CORRESPONSALES|Zona 4, Ciudad Guatemala|GUATEMALA|2022.01|TERID:40000331 TXN:000021|CONCE:0000030001|Guatemala 18/05/2023 11:21:09|REF:895621215554 AUT:789456||CTA.************1210
+VENCE:11/15||PAGO DE SERVICIOS|EFECTIVO||Proveedor: Municipalidad de San Miguel Petapa|Tipo de Pago: Pago de Boleto de Ornato|Serie: S/S|Recibo No.: 512632|Monto Pagado: Q.233.68|Firma Electronica: KHO7MF1462|Correo
+Electronico: Prueba@bi.com.gt|Fecha y hora: 05-marzo-2021/2:32:41 p.m.||EL RECIBO DE PAGO FUE ENVIADO|AL CORREO ELECTRONICO INGRESADO,|SI DESPUES DE 15 MINUTOS DE|HABER REALIZADO TU PAGO NO LO|HAS RECIBIDO, REVISA
+TU BANDEJA|DE CORREOS NO DESEADOS O SPAM,|O INGRESA AL PORTAL https://|serviciosportalgl.minfin.gob.gt/|verificar-recibo, Y CONSULTA TU|RECIBO INGRESANDO EL DATO|DE FIRMA ELECTRONICA MOSTRADO|EN ESTE COMPROBANTE.||
+INFORMACION DE PAGO||Tipo de cuenta: Ahorro|Nombre de la cuenta: Arriola Alvizurez Otoniel O/Hernandez|No. de cuenta: 3713333|Numero de autorizacion: 189961||F.______________________|Firma del Cliente||Este es su
+unico|comprobante de pago|(Exijalo)|Banco Industrial S.A es responsable por las|operaciones realizadas y por los servicios|prestados por cuenta de este. Por el agente|Bancario.|NOMBRE CORRESPONSALES|GRACIAS POR
+PREFERIRNOS|---- COPIA ESTABLECIMIENTO ----|</string>
     <string name="insert_tap_swipe_card">INSERTE / PRESENTE / DESLICE\nTARJETA</string>
     <string name="prompt_remove_card">POR FAVOR RETIRE SU TARJETA</string>
     <string name="tags_emv">TAGs Emv</string>
     <string name="log">Log</string>
     <string name="prompt_fallback_insert_card">POR FAVOR INSERTE SU TARJETA</string>
     <string name="msg_printer_status_ok">Printer Status OK</string>
+
+    <!--Fallback, DESLICE TARJETA-->
+    <string name="prompt_fallback_swipe_card">DESLICE SU TARJETA</string>
+    <string name="prompt_try_another_interface">Trate otro medio, INSERTE TARJETA</string>
+    <string name="prompt_online_processing">Autorizando En Linea…</string>
+    <string name="error_reading_card">ERROR LEYENDO TARJETA</string>
+
+    <string name="prompt_remove_card_title">¡Gracias!</string>
+    <string name="prompt_remove_card_body">ahora puedes retirar la tarjeta</string>
+    <string name="prompt_see_phone">Vea su teléfono, acerque el teléfono&#8230;</string>
+    <string name="prompt_detect_card_again">Reintente, Coloque nuevamente la tarjeta</string>
+    <string name="prompt_dont_remove_card">NO RETIRE SU TARJETA</string>
+    <string name="prompt_swipe_card">TARJETA DESLIZADA</string>
+    <string name="please_enter_pin">Please Enter PIN</string>
+    <string name="no_pin_please_press_enter_key">(No PIN, Please Press Enter Key)</string>
+    <string name="CardDeclinedTransaction">TARJETA DECLINO TRANSACCION</string>
+    <string name="HostDeclinedTransaction">HOST DECLINO</string>
+    <string name="EMVProcessFail">FALLO DE PROCESO EMV</string>
+    <string name="FinishingEMVTran">FINALIZANDO TRAN EMV</string>
+    <string name="comms_fail">FALLO DE COMUNUCACION</string>
+    <string name="no_response_from_server">No se obtuvo respuesta del servidor</string>
+    <string name="TranFailed">TRANSACCION FALLO</string>
+    <string name="UnknownError">ERROR NO DETERMINADO</string>
+    <string name="Declined">DECLINADA</string>
+    <string name="Approved">APROBADA</string>
+    <string name="Auth">Aut</string>
+    <string name="press_fingerprint">Press the fingerprint</string>
 </resources>
