@@ -1,15 +1,23 @@
 package com.techun.demoemvttpax
 
+import android.app.ActivityManager
+import android.content.Context
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
-import android.os.Bundle
-import android.os.SystemClock
+import android.graphics.Point
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.*
+import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.View
 import android.widget.Toast
 import com.pax.dal.IFingerprintReader
 import com.pax.dal.IFingerprintReader.FingerprintListener
+import com.pax.dal.entity.ETermInfoKey
 import com.pax.dal.entity.FingerprintResult
 import com.pax.dal.exceptions.FingerprintDevException
 import com.pax.gl.page.IPage
@@ -29,7 +37,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.net.InetAddress
+import java.net.NetworkInterface
 import java.util.*
+import kotlin.math.round
+import kotlin.math.roundToInt
 
 private const val FEATURE_ANSI_INCITS_378_2004 = 1
 private const val FEATURE_ISO_IEC_19794_2_2005 = 2
@@ -102,22 +114,25 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             println("Error: $it")
         })
 
-        binding.btnTestPaxPrinter.setOnClickListener(this)
-        binding.btnTestCustomPrinter.setOnClickListener(this)
-        binding.btnTestEmv.setOnClickListener(this)
+        binding.layoutUi.btnTestPaxPrinter.setOnClickListener(this)
+        binding.layoutUi.btnTestCustomPrinter.setOnClickListener(this)
+        binding.layoutUi.btnTestEmv.setOnClickListener(this)
 
-        binding.btnFingerPrintOpen.setOnClickListener(this)
-        binding.btnFingerPrintExtracImage.setOnClickListener(this)
-        binding.btnFingerPrintExtracFeature.setOnClickListener(this)
-        binding.btnFingerPrintCompareFeature.setOnClickListener(this)
-        binding.btnFingerPrintClose.setOnClickListener(this)
-        binding.btnFingerPrintStop.setOnClickListener(this)
+        binding.layoutUi.btnFingerPrintOpen.setOnClickListener(this)
+        binding.layoutUi.btnFingerPrintExtracImage.setOnClickListener(this)
+        binding.layoutUi.btnFingerPrintExtracFeature.setOnClickListener(this)
+        binding.layoutUi.btnFingerPrintCompareFeature.setOnClickListener(this)
+        binding.layoutUi.btnFingerPrintClose.setOnClickListener(this)
+        binding.layoutUi.btnFingerPrintStop.setOnClickListener(this)
+
+
+        binding.layoutUi.btnSysInfo.setOnClickListener(this)
     }
 
     override fun onDetectError(errorCode: DetectCardResult.ERetCode?) {
         runOnUiThread {
             progressbar(false)
-            binding.tvLogs.text = errorCode!!.name
+            logs(errorCode!!.name)
             if (errorCode === DetectCardResult.ERetCode.FALLBACK) {
                 Utils.logsUtils(getString(R.string.prompt_fallback_insert_card))
             } else Toast.makeText(applicationContext, errorCode.toString(), Toast.LENGTH_SHORT)
@@ -131,7 +146,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
     }
 
     override fun onRemoveCard() {
-        binding.tvPrinter.text = getString(R.string.prompt_remove_card)
+        binding.layoutUi.tvPrinter.text = getString(R.string.prompt_remove_card)
     }
 
     /**
@@ -339,7 +354,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         //Si la transaccion tanto ICC o PICC se realiza con exito, a este metodo se estara accediendo,
         //si hay un error se notificara al metodo onDetectError
         runOnUiThread {
-            binding.tvLogs.text = "TRANSACCION FINALIZADA"
+            logs("TRANSACCION FINALIZADA")
             Utils.logsUtils("TRANSACCION FINALIZADA")
             Toast.makeText(this, "TRANSACCION FINALIZADA", Toast.LENGTH_SHORT).show()
         }
@@ -382,7 +397,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             EMVUtils.CardBrand.DISCOVER -> {}
         }
 
-        binding.tvTags.text = shorted
+        binding.layoutUi.tvTags.text = shorted
         glStatus.GetInstance().tranEMVTags.Clear()
 
 
@@ -458,16 +473,14 @@ class MainActivity : BaseActivity(), View.OnClickListener {
     }
 
     private fun logs(msg: String?) {
-//        binding.tvLogs.text = msg
-
         Log.d("logs-demo-app", "$msg")
-        binding.tvLogs.append("$msg \n")
+        binding.layoutUi.tvLogs.append("$msg \n")
     }
 
     override fun onClick(v: View?) {
         val id = v?.id
-        binding.tvTags.text = ""
-        binding.tvLogs.text = ""
+        binding.layoutUi.tvTags.text = ""
+        logs("")
         when (id) {
             //Printer
             R.id.btnTestPaxPrinter -> {
@@ -478,7 +491,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                         val status = sdkTTPax.printer(bitmap)
                         Utils.logsUtils("Printer Status: $status")
                         withContext(Dispatchers.Main) {
-                            binding.tvLogs.text = getString(R.string.msg_printer_status_ok)
+                            logs(getString(R.string.msg_printer_status_ok))
                             progressbar(false)
                         }
                     } catch (e: PrinterException) {
@@ -486,7 +499,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                         val msg = e.errMsg
                         withContext(Dispatchers.Main) {
                             Toast.makeText(applicationContext, msg, Toast.LENGTH_SHORT).show()
-                            binding.tvLogs.text = "Code: $code, Msg: $msg"
+                            logs("Code: $code, Msg: $msg")
                             progressbar(false)
                         }
                     }
@@ -501,7 +514,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                         val status = sdkTTPax.printer(bitmap)
                         Utils.logsUtils("Printer Status: $status")
                         withContext(Dispatchers.Main) {
-                            binding.tvLogs.text = getString(R.string.msg_printer_status_ok)
+                            logs(getString(R.string.msg_printer_status_ok))
                             progressbar(false)
                         }
                     } catch (e: PrinterException) {
@@ -509,7 +522,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                         val msg = e.errMsg
                         withContext(Dispatchers.Main) {
                             Toast.makeText(applicationContext, msg, Toast.LENGTH_SHORT).show()
-                            binding.tvLogs.text = "Code: $code, Msg: $msg"
+                            logs("Code: $code, Msg: $msg")
                             progressbar(false)
                         }
                     }
@@ -518,8 +531,8 @@ class MainActivity : BaseActivity(), View.OnClickListener {
 
             //EMV
             R.id.btnTestEmv -> {
-                binding.tvPrinter.text = getString(R.string.insert_tap_swipe_card)
-                progressbar(true,getString(R.string.emv))
+                binding.layoutUi.tvPrinter.text = getString(R.string.insert_tap_swipe_card)
+                progressbar(true, getString(R.string.emv))
                 val amount = 5000L
                 initEmvTransaction(amount)
             }
@@ -544,7 +557,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                 logs("Extract Image")
                 time = 0
                 time_ok = true
-                progressbar(true,getString(R.string.press_fingerprint))
+                progressbar(true, getString(R.string.press_fingerprint))
 
 
                 try {
@@ -619,8 +632,209 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                     e.printStackTrace()
                 }
             }
+
+            //Sys
+            R.id.btnSysInfo -> {
+                val param: Map<ETermInfoKey, String> = sdkTTPax.getDal(this)!!.sys.termInfo
+                param.forEach { entry ->
+                    if (entry.key.toString() == "SN" ||
+                        entry.key.toString() == "MODEL" ||
+                        entry.key.toString() == "AP_VER"
+                    ) {
+                        print("${entry.key} : ${entry.value}")
+                        logs(("${entry.key} : ${entry.value}"))
+                    }
+                }
+
+                //Android and API version
+                val versionAPI = Build.VERSION.SDK_INT
+                val versionRelease = Build.VERSION.RELEASE
+                logs("API Version : $versionAPI")
+                logs("Android Version : Android $versionRelease")
+
+                // Screen Resolutions
+                val display = windowManager.defaultDisplay
+                val size = Point()
+                display.getSize(size)
+                val width = size.x
+                val height = size.y
+                logs("Screen Resolution : $width x $height")
+
+                //IMEI
+                val telephonyManager = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+                /*   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                       logs("IMEI : ${telephonyManager.imei}")
+                   }else{
+                       logs("IMEI : -")
+                   }*/
+
+
+                logs("PN : ${sdkTTPax.getDal(this)!!.sys.pn}")
+                logs("Sys Language : ${sdkTTPax.getDal(this)!!.sys.systemLanguage}")
+                logs("Date : ${sdkTTPax.getDal(this)!!.sys.date}")
+
+                //RAM
+                logs("RAM(%) : ${obtenerPorcentajeRAMUtilizada(this)}")
+
+                //CPU
+                logs("CPU(%) : ${obtenerPorcentajeCPU()}")
+
+                //Battery
+                val bm = applicationContext.getSystemService(BATTERY_SERVICE) as BatteryManager
+                val batLevel: Int = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                logs("Batter(%) : $batLevel%")
+
+                //IP
+                logs("IP : ${getIPAddress(this)}")
+
+                //MAC
+                logs("MAC : ${getMACAddress()}")
+
+                //Password
+                sdkTTPax.getDal(this)!!.sys.setSettingsNeedPassword(false)
+
+                logs("\n\nModule Supported :\n")
+                val moduleSupported = sdkTTPax.getDal(this)!!.deviceInfo.moduleSupported
+                moduleSupported.forEach { entry ->
+                    logs("${entry.key} : ${entry.value}")
+                }
+
+                //Installed Apps
+                logs("\n\nInstalled Apps :\n")
+
+                val packageManager: PackageManager = packageManager
+                val installedApps: List<ApplicationInfo> =
+                    packageManager.getInstalledApplications(0)
+
+                for (appInfo in installedApps) {
+                    if ((appInfo.flags and ApplicationInfo.FLAG_SYSTEM) == 0) {
+                        val appName = appInfo.loadLabel(packageManager).toString()
+                        val packageName = appInfo.packageName
+                        val icon = appInfo.loadIcon(packageManager)
+                        logs(
+                            "$appName : \n$packageName\n$icon\n${
+                                getInstallationDate(
+                                    this,
+                                    packageName
+                                )
+                            }\n\n"
+                        )
+                    }
+                }
+
+
+            }
         }
     }
+
+    private fun getInstallationDate(context: Context, packageName: String): Date? {
+        val packageManager: PackageManager = context.packageManager
+        try {
+            val packageInfo = packageManager.getPackageInfo(packageName, 0)
+            val installTime = packageInfo.firstInstallTime
+            return Date(installTime)
+        } catch (e: PackageManager.NameNotFoundException) {
+            e.printStackTrace()
+        }
+        return null
+    }
+
+    private fun obtenerPorcentajeCPU(): String {
+        val totalCpuTime = Debug.threadCpuTimeNanos()
+        val totalElapsedTime = System.nanoTime()
+
+        // Realizar alguna tarea que consuma CPU aquí
+
+        val cpuTime = Debug.threadCpuTimeNanos() - totalCpuTime
+        val elapsedTime = System.nanoTime() - totalElapsedTime
+
+        val porcentajeCPU = (cpuTime.toDouble() / elapsedTime.toDouble()) * 100.0
+        val porcentajeRedondeado = porcentajeCPU.roundToInt()
+
+        return "$porcentajeRedondeado%"
+    }
+
+    private fun obtenerPorcentajeRAMUtilizada(context: Context): String {
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val memoryInfo = ActivityManager.MemoryInfo()
+        activityManager.getMemoryInfo(memoryInfo)
+
+        val memoriaUtilizada = memoryInfo.totalMem - memoryInfo.availMem
+        val porcentajeRAM = (memoriaUtilizada.toDouble() / memoryInfo.totalMem.toDouble()) * 100.0
+        val porcentajeRedondeado = round(porcentajeRAM).toInt()
+
+        return "$porcentajeRedondeado%"
+    }
+
+    private fun getIPAddress(context: Context): String? {
+        val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork
+        val networkCapabilities = connectivityManager.getNetworkCapabilities(network)
+
+        if (networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true) {
+            val inetAddress = getInetAddress()
+            if (inetAddress != null) {
+                return getFormattedIpAddress(inetAddress)
+            }
+        }
+        return null
+    }
+
+    private fun getFormattedIpAddress(inetAddress: InetAddress): String {
+        val ipAddress = inetAddress.hashCode()
+        return InetAddress.getByAddress(intToByteArray(ipAddress)).hostAddress!!
+    }
+
+    private fun intToByteArray(value: Int): ByteArray {
+        return byteArrayOf(
+            (value shr 24).toByte(),
+            (value shr 16).toByte(),
+            (value shr 8).toByte(),
+            value.toByte()
+        )
+    }
+
+    private fun getInetAddress(): InetAddress? {
+        val interfaces = NetworkInterface.getNetworkInterfaces()
+        while (interfaces.hasMoreElements()) {
+            val networkInterface = interfaces.nextElement()
+            val addresses = networkInterface.inetAddresses
+            while (addresses.hasMoreElements()) {
+                val address = addresses.nextElement()
+                if (!address.isLoopbackAddress) {
+                    return address
+                }
+            }
+        }
+        return null
+    }
+
+    private fun getMACAddress(): String? {
+        try {
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            while (interfaces.hasMoreElements()) {
+                val networkInterface = interfaces.nextElement()
+                if (networkInterface.name.equals("wlan0", ignoreCase = true)) {
+                    val macBytes = networkInterface.hardwareAddress
+                    if (macBytes != null) {
+                        val stringBuilder = StringBuilder()
+                        for (b in macBytes) {
+                            stringBuilder.append(String.format("%02X:", b))
+                        }
+                        if (stringBuilder.isNotEmpty()) {
+                            stringBuilder.deleteCharAt(stringBuilder.length - 1)
+                        }
+                        return stringBuilder.toString()
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return null
+    }
+
 
     private var listener: FingerprintListener = object : FingerprintListener {
         override fun onError(i: Int) {
@@ -653,8 +867,8 @@ class MainActivity : BaseActivity(), View.OnClickListener {
     }
 
     private fun progressbar(visibility: Boolean, msg: String? = "") {
-        binding.clDialog.visibility = if (visibility) View.VISIBLE else View.GONE
-        binding.tvPrinter.text = msg
+        binding.layoutUi.clDialog.visibility = if (visibility) View.VISIBLE else View.GONE
+        binding.layoutUi.tvPrinter.text = msg
     }
 
     /**

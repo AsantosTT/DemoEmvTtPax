@@ -8,6 +8,8 @@
     <string name="emv">EMV</string>
     <string name="test_emv">TEST EMV</string>
     <string name="test_fingerprint">FINGERPRINT</string>
+    <string name="test_sys_info">System Info</string>
+    <string name="test_get_sys_info">get Info</string>
     <string name="test_fingerprint_open">FINGERPRINT OPEN</string>
     <string name="test_fingerprint_extract_image">FINGERPRINT EXTRACT IMAGE</string>
     <string name="test_fingerprint_extrac_feature">FINGERPRINT EXTRACT FEATURE</string>
