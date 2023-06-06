@@ -8,8 +8,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.graphics.Point
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.os.*
 import android.telephony.TelephonyManager
 import android.util.Log
@@ -37,7 +35,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.net.InetAddress
+import java.io.BufferedReader
+import java.io.FileReader
+import java.io.IOException
 import java.net.NetworkInterface
 import java.util.*
 import kotlin.math.round
@@ -561,39 +561,35 @@ class MainActivity : BaseActivity(), View.OnClickListener {
 
 
                 try {
-                    reader.extractImage(
-                        IMAGE_TYPE_RAW,
-                        10,
-                        object : FingerprintListener {
-                            override fun onError(i: Int) {
-                                logs("Error: $i")
-                            }
+                    reader.extractImage(IMAGE_TYPE_RAW, 10, object : FingerprintListener {
+                        override fun onError(i: Int) {
+                            logs("Error: $i")
+                        }
 
-                            override fun onSuccess(fingerprintResult: FingerprintResult) {
-                                val img = fingerprintResult.captureImage
-                                GlobalScope.launch {
-                                    withContext(Dispatchers.Main) {
-                                        if (img != null) {
-                                            val code = toHexString(img)
-                                            logs("img size: ${img.size}")
-                                            logs(code)
-                                            progressbar(false)
-                                        } else {
-                                            logs("img is null")
-                                            progressbar(false)
-                                        }
+                        override fun onSuccess(fingerprintResult: FingerprintResult) {
+                            val img = fingerprintResult.captureImage
+                            GlobalScope.launch {
+                                withContext(Dispatchers.Main) {
+                                    if (img != null) {
+                                        val code = toHexString(img)
+                                        logs("img size: ${img.size}")
+                                        logs(code)
+                                        progressbar(false)
+                                    } else {
+                                        logs("img is null")
+                                        progressbar(false)
                                     }
                                 }
                             }
-                        })
+                        }
+                    })
                 } catch (e: java.lang.Exception) {
                     logs("App" + e.message)
                 }
             }
             R.id.btnFingerPrintExtracFeature -> {
                 try {
-                    reader.extractFeature(
-                        FEATURE_ANSI_INCITS_378_2004,
+                    reader.extractFeature(FEATURE_ANSI_INCITS_378_2004,
                         object : FingerprintListener {
                             override fun onError(i: Int) {}
                             override fun onSuccess(fingerprintResult: FingerprintResult) {
@@ -637,10 +633,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             R.id.btnSysInfo -> {
                 val param: Map<ETermInfoKey, String> = sdkTTPax.getDal(this)!!.sys.termInfo
                 param.forEach { entry ->
-                    if (entry.key.toString() == "SN" ||
-                        entry.key.toString() == "MODEL" ||
-                        entry.key.toString() == "AP_VER"
-                    ) {
+                    if (entry.key.toString() == "SN" || entry.key.toString() == "MODEL" || entry.key.toString() == "AP_VER") {
                         print("${entry.key} : ${entry.value}")
                         logs(("${entry.key} : ${entry.value}"))
                     }
@@ -655,18 +648,21 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                 // Screen Resolutions
                 val display = windowManager.defaultDisplay
                 val size = Point()
-                display.getSize(size)
+                display.getRealSize(size)
                 val width = size.x
                 val height = size.y
                 logs("Screen Resolution : $width x $height")
 
                 //IMEI
-                val telephonyManager = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
-                /*   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                       logs("IMEI : ${telephonyManager.imei}")
-                   }else{
-                       logs("IMEI : -")
-                   }*/
+                val tm = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+                val IMEI = tm.deviceId
+                logs("IMEI : $IMEI")
+                /*  val telephonyManager = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+               if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                      logs("IMEI : ${telephonyManager.imei}")
+                  }else{
+                      logs("IMEI : -")
+                  }*/
 
 
                 logs("PN : ${sdkTTPax.getDal(this)!!.sys.pn}")
@@ -678,6 +674,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
 
                 //CPU
                 logs("CPU(%) : ${obtenerPorcentajeCPU()}")
+                logs("PAX CPU(%) : ${getCpuInfo()[0]}")
 
                 //Battery
                 val bm = applicationContext.getSystemService(BATTERY_SERVICE) as BatteryManager
@@ -685,7 +682,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                 logs("Batter(%) : $batLevel%")
 
                 //IP
-                logs("IP : ${getIPAddress(this)}")
+                logs("IP : ${getIpAddress()}")
 
                 //MAC
                 logs("MAC : ${getMACAddress()}")
@@ -714,8 +711,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                         logs(
                             "$appName : \n$packageName\n$icon\n${
                                 getInstallationDate(
-                                    this,
-                                    packageName
+                                    this, packageName
                                 )
                             }\n\n"
                         )
@@ -754,6 +750,27 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         return "$porcentajeRedondeado%"
     }
 
+    fun getCpuInfo(): Array<String> {
+        val str1 = "/proc/cpuinfo"
+        var str2 = ""
+        val cpuInfo = arrayOf("", "")
+        var arrayOfString: Array<String>
+        try {
+            val fr = FileReader(str1)
+            val localBufferedReader = BufferedReader(fr, 8192)
+            str2 = localBufferedReader.readLine()
+            arrayOfString = str2.split("\\s+".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+            for (i in 2 until arrayOfString.size) {
+                cpuInfo[0] = cpuInfo[0] + arrayOfString[i] + " "
+            }
+            str2 = localBufferedReader.readLine()
+            arrayOfString = str2.split("\\s+".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+            cpuInfo[1] += arrayOfString[2]
+            localBufferedReader.close()
+        } catch (e: IOException) {
+        }
+        return cpuInfo
+    }
     private fun obtenerPorcentajeRAMUtilizada(context: Context): String {
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val memoryInfo = ActivityManager.MemoryInfo()
@@ -766,48 +783,29 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         return "$porcentajeRedondeado%"
     }
 
-    private fun getIPAddress(context: Context): String? {
-        val connectivityManager =
-            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = connectivityManager.activeNetwork
-        val networkCapabilities = connectivityManager.getNetworkCapabilities(network)
-
-        if (networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true) {
-            val inetAddress = getInetAddress()
-            if (inetAddress != null) {
-                return getFormattedIpAddress(inetAddress)
-            }
-        }
-        return null
-    }
-
-    private fun getFormattedIpAddress(inetAddress: InetAddress): String {
-        val ipAddress = inetAddress.hashCode()
-        return InetAddress.getByAddress(intToByteArray(ipAddress)).hostAddress!!
-    }
-
-    private fun intToByteArray(value: Int): ByteArray {
-        return byteArrayOf(
-            (value shr 24).toByte(),
-            (value shr 16).toByte(),
-            (value shr 8).toByte(),
-            value.toByte()
-        )
-    }
-
-    private fun getInetAddress(): InetAddress? {
-        val interfaces = NetworkInterface.getNetworkInterfaces()
-        while (interfaces.hasMoreElements()) {
-            val networkInterface = interfaces.nextElement()
-            val addresses = networkInterface.inetAddresses
-            while (addresses.hasMoreElements()) {
-                val address = addresses.nextElement()
-                if (!address.isLoopbackAddress) {
-                    return address
+    private fun getIpAddress(): String {
+        try {
+            val infos: List<NetworkInterface> =
+                Collections.list(NetworkInterface.getNetworkInterfaces())
+            for (info in infos) {
+                if (info.name != "wlan0") {
+                    continue
                 }
+                var ipAddr = "0.0.0.0"
+                val addrs = info.inetAddresses
+                while (addrs.hasMoreElements()) {
+                    val addr = addrs.nextElement()
+                    if (addr.toString().length <= 16) {
+                        ipAddr = addr.toString().subSequence(1, addr.toString().length).toString()
+                    }
+                }
+
+                return ipAddr
             }
+        } catch (e: java.lang.Exception) {
+            e.printStackTrace()
         }
-        return null
+        return "0.0.0.0"
     }
 
     private fun getMACAddress(): String? {
@@ -883,14 +881,10 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         page.addLine().addUnit().addUnit(unit)
             .addUnit(page.createUnit().setText("Test").setAlign(IPage.EAlign.RIGHT))
         page.addLine().addUnit(
-            "商户存根",
-            Utils.FONT_NORMAL, IPage.EAlign.RIGHT,
-            IPage.ILine.IUnit.TEXT_STYLE_BOLD
+            "商户存根", Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_BOLD
         )
         page.addLine().addUnit(
-            "商户存根",
-            Utils.FONT_NORMAL, IPage.EAlign.RIGHT,
-            IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE
+            "商户存根", Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE
         )
         page.addLine().addUnit(
             "商户存根",
@@ -899,9 +893,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             IPage.ILine.IUnit.TEXT_STYLE_BOLD or IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE
         )
         page.addLine().addUnit(
-            "商户存根",
-            Utils.FONT_NORMAL, IPage.EAlign.RIGHT,
-            IPage.ILine.IUnit.TEXT_STYLE_NORMAL
+            "商户存根", Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_NORMAL
         )
         page.addLine().addUnit(
             "商户存根",
@@ -911,9 +903,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             1f
         )
         page.addLine().addUnit(
-            "商户存根",
-            Utils.FONT_NORMAL, IPage.EAlign.RIGHT,
-            IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
+            "商户存根", Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
         )
         page.addLine().addUnit("-----------------------------------------", Utils.FONT_NORMAL)
         page.addLine().addUnit("商户名称: " + "百富计算机技术", Utils.FONT_NORMAL)
@@ -934,32 +924,27 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             .addUnit("000001", Utils.FONT_NORMAL, IPage.EAlign.RIGHT)
 
         page.addLine().addUnit(
-            "授权码:",
-            Utils.FONT_NORMAL, IPage.EAlign.LEFT,
-            IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
+            "授权码:", Utils.FONT_NORMAL, IPage.EAlign.LEFT, IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
+        ).addUnit(
+            "参考号:",
+            Utils.FONT_NORMAL,
+            IPage.EAlign.RIGHT,
+            IPage.ILine.IUnit.TEXT_STYLE_NORMAL,
+            1f
         )
-            .addUnit(
-                "参考号:",
-                Utils.FONT_NORMAL, IPage.EAlign.RIGHT,
-                IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
-            )
         page.addLine().addUnit(
-            "987654",
-            Utils.FONT_BIGEST, IPage.EAlign.LEFT,
-            IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
+            "987654", Utils.FONT_BIGEST, IPage.EAlign.LEFT, IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
+        ).addUnit(
+            "012345678912",
+            Utils.FONT_NORMAL,
+            IPage.EAlign.RIGHT,
+            IPage.ILine.IUnit.TEXT_STYLE_NORMAL
         )
-            .addUnit(
-                "012345678912",
-                Utils.FONT_NORMAL, IPage.EAlign.RIGHT,
-                IPage.ILine.IUnit.TEXT_STYLE_NORMAL
-            )
 
         page.addLine().addUnit("日期/时间:" + "2016/06/13 12:12:12", Utils.FONT_NORMAL)
         page.addLine().addUnit("金额:", Utils.FONT_BIG)
         page.addLine().addUnit(
-            "RMB 1.00",
-            Utils.FONT_BIG, IPage.EAlign.RIGHT,
-            IPage.ILine.IUnit.TEXT_STYLE_BOLD
+            "RMB 1.00", Utils.FONT_BIG, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_BOLD
         )
 
         page.addLine().addUnit("备注:", Utils.FONT_NORMAL)
@@ -968,7 +953,8 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         page.addLine().addUnit("-----------------------------------------", Utils.FONT_NORMAL)
         page.addLine().addUnit(
             "本人确认已上交易, 同意将其计入本卡账户\n\n\n\n\n",
-            Utils.FONT_NORMAL, IPage.EAlign.CENTER,
+            Utils.FONT_NORMAL,
+            IPage.EAlign.CENTER,
             IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE
         )
 

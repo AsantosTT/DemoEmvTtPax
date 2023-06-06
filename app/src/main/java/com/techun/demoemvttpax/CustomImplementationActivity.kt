@@ -49,8 +49,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class CustomImplementationActivity : AppCompatActivity(),
-    TransProcessContract.View,
+class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.View,
     DetectCardContract.View, View.OnClickListener {
 
     //Printer
@@ -103,8 +102,7 @@ class CustomImplementationActivity : AppCompatActivity(),
         binding.btnTestCustomPrinter.setOnClickListener(this)
         binding.btnTestEmv.setOnClickListener(this)
 
-        val amount = 5000L
-        initEmvTransaction(amount)
+
     }
 
     //Config Trans
@@ -498,7 +496,7 @@ class CustomImplementationActivity : AppCompatActivity(),
                 //El pan sequence number es opcional, si viene hay que enviarlo , si no no debe enviarse.
                 if (panseqno != null) {
                     if (panseqno.isNotEmpty()) {
-                        glStatus.GetInstance().PANSeqNo = panseqno.get(0)
+                        glStatus.GetInstance().PANSeqNo = panseqno[0]
                         glStatus.GetInstance().tranEMVTags.AddTag(
                             TagsTable.T_5F34_PAN_SEQ_NO, panseqno
                         )
@@ -511,13 +509,17 @@ class CustomImplementationActivity : AppCompatActivity(),
                     val T9F35 = convert.strToBcd("22", IConvert.EPaddingPosition.PADDING_LEFT)
                     Utils.addManualTag(TagsTable.T_9F35_L2_KERNEL, T9F35)
                 }
+
                 tagdata = extractTag(TagsTable.T_5F2A_CURRENCY_CODE, true)
+                Utils.logsUtils("KEY= ${TagsTable.T_5F2A_CURRENCY_CODE} VALUE= ${MiscUtils.bytes2HexStr(tagdata)}")
+
 
                 //2020-08-23 En contactless el Kernel no esta regresando el TAG 5F2A de MC
                 if (tagdata == null) {
                     val T5F2A = convert.strToBcd("0320", IConvert.EPaddingPosition.PADDING_LEFT)
                     Utils.addManualTag(TagsTable.T_5F2A_CURRENCY_CODE, T5F2A)
                 }
+
                 tagdata = extractTag(TagsTable.T_82_AIP, true)
                 tagdata = extractTag(TagsTable.T_95_TVR, true)
                 if (tagdata != null) glStatus.GetInstance().TVR = MiscUtils.bcd2Str(tagdata)
@@ -599,7 +601,6 @@ class CustomImplementationActivity : AppCompatActivity(),
                     glStatus.GetInstance().TERMINAL_CAPABILITY = if (isPin) "0" else "1"
                 }
 
-
                 //TODO: 9F10
                 val t9f10 = extractTag(TagsTable.T_9F10_ISSUER_APP_DATA, false)
                 if (t9f10 != null) glStatus.GetInstance().PINCARD = MiscUtils.bytesToString(t9f10)
@@ -613,6 +614,15 @@ class CustomImplementationActivity : AppCompatActivity(),
                 val appLabel = extractTag(TagsTable.T_50_APP_LABEL, false)
                 if (appLabel != null) glStatus.GetInstance().ApplicationLabel =
                     MiscUtils.bytes2String(appLabel)
+
+                //TODO: 77
+                val resMessage = extractTag(0x77, true)
+                if (resMessage == null) {
+                    val T77 = convert.strToBcd(
+                        "Your_data", IConvert.EPaddingPosition.PADDING_LEFT
+                    )
+                    Utils.addManualTag(0x77, T77)
+                }
 
                 Utils.logsUtils("AID: ${glStatus.GetInstance().AID}\nPINCARD: ${glStatus.GetInstance().PINCARD}\nCardHolderName${glStatus.GetInstance().CardHolderName}\nApplicationLabel${glStatus.GetInstance().ApplicationLabel}")
 
@@ -689,9 +699,7 @@ class CustomImplementationActivity : AppCompatActivity(),
         currentTxnCVMResult = transResult.cvmResult
         currTransResultCode = transResult.resultCode
 
-        Utils.logsUtils(
-            "onTransFinish,retCode: $currTransResultCode, transResult: $currTransResultEnum, cvm result: ${transResult.cvmResult}"
-        )
+        Utils.logsUtils("onTransFinish,retCode: $currTransResultCode, transResult: $currTransResultEnum, cvm result: ${transResult.cvmResult}")
 
         getFirstGACTag()
 
@@ -706,10 +714,7 @@ class CustomImplementationActivity : AppCompatActivity(),
         currTransResultEnum = transResult!!.transResult
         glStatus.GetInstance().TransactionResult = currTransResultEnum
         currTransResultCode = transResult.resultCode
-        Utils.logsUtils(
-            "onCompleteTrans,retCode: ${transResult.resultCode}, transResult: $currTransResultEnum",
-            0
-        )
+        Utils.logsUtils("onCompleteTrans,retCode: ${transResult.resultCode}, transResult: $currTransResultEnum", 0)
         if (transResult.resultCode == RetCode.EMV_OK) {
             //La transaccion fue exitosa
             proccessEmvComplete()
@@ -932,11 +937,8 @@ class CustomImplementationActivity : AppCompatActivity(),
         }
 
         binding.tvTags.text = shorted
+        Utils.logsUtils("TLV: $shorted")
         glStatus.GetInstance().tranEMVTags.Clear()
-
-
-
-
 
 
         //Aqui se tendria que enviar o procesar la lista de tags obteniedos
@@ -1016,29 +1018,31 @@ class CustomImplementationActivity : AppCompatActivity(),
         unit.text = "GLiPaxGlPage"
         page.addLine().addUnit().addUnit(unit)
             .addUnit(page.createUnit().setText("Test").setAlign(IPage.EAlign.RIGHT))
-        page.addLine().addUnit("商户存根",
-            Utils.FONT_NORMAL, IPage.EAlign.RIGHT,
-            IPage.ILine.IUnit.TEXT_STYLE_BOLD
+        page.addLine().addUnit(
+            "商户存根", Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_BOLD
         )
-        page.addLine().addUnit("商户存根",
-            Utils.FONT_NORMAL, IPage.EAlign.RIGHT,
-            IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE
+        page.addLine().addUnit(
+            "商户存根", Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE
         )
         page.addLine().addUnit(
             "商户存根",
-            Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_BOLD or IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE
+            Utils.FONT_NORMAL,
+            IPage.EAlign.RIGHT,
+            IPage.ILine.IUnit.TEXT_STYLE_BOLD or IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE
         )
-        page.addLine().addUnit("商户存根",
-            Utils.FONT_NORMAL, IPage.EAlign.RIGHT,
-            IPage.ILine.IUnit.TEXT_STYLE_NORMAL
+        page.addLine().addUnit(
+            "商户存根", Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_NORMAL
         )
         page.addLine().addUnit(
             "商户存根",
-            Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_BOLD or IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE, 1f
+            Utils.FONT_NORMAL,
+            IPage.EAlign.RIGHT,
+            IPage.ILine.IUnit.TEXT_STYLE_BOLD or IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE,
+            1f
         )
-        page.addLine().addUnit("商户存根",
-            Utils.FONT_NORMAL, IPage.EAlign.RIGHT,
-            IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f)
+        page.addLine().addUnit(
+            "商户存根", Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
+        )
         page.addLine().addUnit("-----------------------------------------", Utils.FONT_NORMAL)
         page.addLine().addUnit("商户名称: " + "百富计算机技术", Utils.FONT_NORMAL)
         page.addLine().addUnit("商户编号: " + "111111111111111", Utils.FONT_NORMAL)
@@ -1052,29 +1056,29 @@ class CustomImplementationActivity : AppCompatActivity(),
 
         page.addLine().addUnit("交易类型: " + "消费", Utils.FONT_BIG)
 
-        page.addLine().addUnit("流水号:", Utils.FONT_NORMAL).addUnit("批次号:", Utils.FONT_NORMAL, IPage.EAlign.RIGHT)
+        page.addLine().addUnit("流水号:", Utils.FONT_NORMAL)
+            .addUnit("批次号:", Utils.FONT_NORMAL, IPage.EAlign.RIGHT)
         page.addLine().addUnit("123456", Utils.FONT_NORMAL)
             .addUnit("000001", Utils.FONT_NORMAL, IPage.EAlign.RIGHT)
 
-        page.addLine().addUnit("授权码:",
-            Utils.FONT_NORMAL, IPage.EAlign.LEFT,
-            IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f)
-            .addUnit("参考号:",
-                Utils.FONT_NORMAL, IPage.EAlign.RIGHT,
-                IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f)
-        page.addLine().addUnit("987654",
-            Utils.FONT_BIGEST, IPage.EAlign.LEFT,
-            IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f)
-            .addUnit("012345678912",
-                Utils.FONT_NORMAL, IPage.EAlign.RIGHT,
-                IPage.ILine.IUnit.TEXT_STYLE_NORMAL
-            )
+        page.addLine().addUnit(
+            "授权码:", Utils.FONT_NORMAL, IPage.EAlign.LEFT, IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
+        ).addUnit(
+            "参考号:", Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
+        )
+        page.addLine().addUnit(
+            "987654", Utils.FONT_BIGEST, IPage.EAlign.LEFT, IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
+        ).addUnit(
+            "012345678912",
+            Utils.FONT_NORMAL,
+            IPage.EAlign.RIGHT,
+            IPage.ILine.IUnit.TEXT_STYLE_NORMAL
+        )
 
         page.addLine().addUnit("日期/时间:" + "2016/06/13 12:12:12", Utils.FONT_NORMAL)
         page.addLine().addUnit("金额:", Utils.FONT_BIG)
-        page.addLine().addUnit("RMB 1.00",
-            Utils.FONT_BIG, IPage.EAlign.RIGHT,
-            IPage.ILine.IUnit.TEXT_STYLE_BOLD
+        page.addLine().addUnit(
+            "RMB 1.00", Utils.FONT_BIG, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_BOLD
         )
 
         page.addLine().addUnit("备注:", Utils.FONT_NORMAL)
@@ -1083,7 +1087,8 @@ class CustomImplementationActivity : AppCompatActivity(),
         page.addLine().addUnit("-----------------------------------------", Utils.FONT_NORMAL)
         page.addLine().addUnit(
             "本人确认已上交易, 同意将其计入本卡账户\n\n\n\n\n",
-            Utils.FONT_NORMAL, IPage.EAlign.CENTER,
+            Utils.FONT_NORMAL,
+            IPage.EAlign.CENTER,
             IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE
         )
 

@@ -20,6 +20,7 @@
         <item>0x9F10</item>
         <item>0x9F6E</item>
         <item>0x9F35</item>
+        <item>0x77</item>
     </integer-array>
     <integer-array name="visa_picc">
         <item>0x5F2A</item>
