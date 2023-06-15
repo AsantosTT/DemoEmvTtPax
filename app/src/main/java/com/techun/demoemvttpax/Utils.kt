@@ -4,7 +4,7 @@ import java.util.*
 
 fun toHexString(byteArray: ByteArray?): String? {
     val hexString = StringBuilder()
-    if (byteArray == null || byteArray.size <= 0) return null
+    if (byteArray == null || byteArray.isEmpty()) return null
     for (i in byteArray.indices) {
         val v = byteArray[i].toInt() and 0xFF
         val hv = Integer.toHexString(v)

@@ -1,5 +1,6 @@
 package com.techun.demoemvttpax
 
+import android.Manifest
 import android.app.ActivityManager
 import android.content.Context
 import android.content.pm.ApplicationInfo
@@ -13,6 +14,8 @@ import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.View
 import android.widget.Toast
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.pax.dal.IFingerprintReader
 import com.pax.dal.IFingerprintReader.FingerprintListener
 import com.pax.dal.entity.ETermInfoKey
@@ -31,10 +34,8 @@ import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.*
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.interfaces.IConvert
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.printer.exception.PrinterException
 import com.tecnologiatransaccional.ttpaxsdk.utils.Utils
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.*
 import java.io.BufferedReader
 import java.io.FileReader
 import java.io.IOException
@@ -42,6 +43,7 @@ import java.net.NetworkInterface
 import java.util.*
 import kotlin.math.round
 import kotlin.math.roundToInt
+
 
 private const val FEATURE_ANSI_INCITS_378_2004 = 1
 private const val FEATURE_ISO_IEC_19794_2_2005 = 2
@@ -55,7 +57,22 @@ private const val IMAGE_TYPEWSQ = 3
 private const val IMAGE_ANSI_INCITS_381_2004 = 4
 private const val IMAGE_ISO_IEC_19794_4_2005 = 5
 
+private const val PERMISSION_REQUEST_CODE = 100
+
+@AndroidEntryPoint
 class MainActivity : BaseActivity(), View.OnClickListener {
+
+    private val permissions = arrayOf(
+        Manifest.permission.MOUNT_UNMOUNT_FILESYSTEMS,
+        Manifest.permission.WRITE_EXTERNAL_STORAGE,
+        Manifest.permission.READ_PHONE_STATE,
+        Manifest.permission.ACCESS_NETWORK_STATE,
+        Manifest.permission.ACCESS_WIFI_STATE,
+        Manifest.permission.INTERNET,
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.ACCESS_COARSE_LOCATION
+    )
+
     //Pages
     lateinit var iPaxGLPage: PaxGLPage
 
@@ -127,6 +144,42 @@ class MainActivity : BaseActivity(), View.OnClickListener {
 
 
         binding.layoutUi.btnSysInfo.setOnClickListener(this)
+        checkAndRequestPermissions()
+
+    }
+
+    private fun checkAndRequestPermissions() {
+        val permissionsToRequest = ArrayList<String>()
+        for (permission in permissions) {
+            val result = ContextCompat.checkSelfPermission(this, permission)
+            if (result != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(permission)
+            }
+        }
+
+        if (permissionsToRequest.isNotEmpty()) {
+            ActivityCompat.requestPermissions(
+                this,
+                permissionsToRequest.toTypedArray(),
+                PERMISSION_REQUEST_CODE
+            )
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            for (i in grantResults.indices) {
+                if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
+                    // El permiso no fue concedido, puedes manejar esta situación según tus necesidades
+                    Toast.makeText(this, "Access denied for ${grantResults[i]}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     override fun onDetectError(errorCode: DetectCardResult.ERetCode?) {
@@ -415,7 +468,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             Utils.logsUtils("emvTagsResp: $result")
         }
 
-        val codAuth: String? = "072745"
+        val codAuth = "072745"
         glStatus.GetInstance().AuthCode = codAuth
 
         if (glStatus.GetInstance().tranEMVResponseTags.ContainsTag(0x91)) {
@@ -423,7 +476,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             glStatus.GetInstance().issuerRspData.authData = authData //TAG:91
         }
 
-        if (codAuth!!.isNotEmpty()) {
+        if (codAuth.isNotEmpty()) {
             val authCode: ByteArray = ConvertHelper.getConvert().strToByteArray(codAuth)
             glStatus.GetInstance().issuerRspData.authCode = authCode //TAG:89
         }
@@ -477,6 +530,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         binding.layoutUi.tvLogs.append("$msg \n")
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
     override fun onClick(v: View?) {
         val id = v?.id
         binding.layoutUi.tvTags.text = ""
@@ -655,15 +709,8 @@ class MainActivity : BaseActivity(), View.OnClickListener {
 
                 //IMEI
                 val tm = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
-                val IMEI = tm.deviceId
-                logs("IMEI : $IMEI")
-                /*  val telephonyManager = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
-               if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                      logs("IMEI : ${telephonyManager.imei}")
-                  }else{
-                      logs("IMEI : -")
-                  }*/
-
+                val imeiNo = tm.deviceId
+                logs("IMEI : $imeiNo")
 
                 logs("PN : ${sdkTTPax.getDal(this)!!.sys.pn}")
                 logs("Sys Language : ${sdkTTPax.getDal(this)!!.sys.systemLanguage}")
@@ -673,7 +720,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                 logs("RAM(%) : ${obtenerPorcentajeRAMUtilizada(this)}")
 
                 //CPU
-                logs("CPU(%) : ${obtenerPorcentajeCPU()}")
+//                logs("CPU(%) : ${obtenerPorcentajeCPU()}")
                 logs("PAX CPU(%) : ${getCpuInfo()[0]}")
 
                 //Battery
@@ -718,7 +765,15 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                     }
                 }
 
+                var longitude = 0.0
+                var latitude = 0.0
+                val finder = LocationFinder(this)
 
+                if (finder.canGetLocation()){
+                    longitude = finder.getLongitud()
+                    latitude = finder.getLatitud()
+                    Toast.makeText(this, "lat-lng “ + $latitude + “ — “ + $longitude", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
@@ -750,7 +805,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         return "$porcentajeRedondeado%"
     }
 
-    fun getCpuInfo(): Array<String> {
+    private fun getCpuInfo(): Array<String> {
         val str1 = "/proc/cpuinfo"
         var str2 = ""
         val cpuInfo = arrayOf("", "")
@@ -759,18 +814,22 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             val fr = FileReader(str1)
             val localBufferedReader = BufferedReader(fr, 8192)
             str2 = localBufferedReader.readLine()
-            arrayOfString = str2.split("\\s+".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+            arrayOfString =
+                str2.split("\\s+".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
             for (i in 2 until arrayOfString.size) {
                 cpuInfo[0] = cpuInfo[0] + arrayOfString[i] + " "
             }
             str2 = localBufferedReader.readLine()
-            arrayOfString = str2.split("\\s+".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+            arrayOfString =
+                str2.split("\\s+".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
             cpuInfo[1] += arrayOfString[2]
             localBufferedReader.close()
         } catch (e: IOException) {
+            onDetectError(DetectCardResult.ERetCode.ERR_OTHER)
         }
         return cpuInfo
     }
+
     private fun obtenerPorcentajeRAMUtilizada(context: Context): String {
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val memoryInfo = ActivityManager.MemoryInfo()
@@ -832,7 +891,6 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         }
         return null
     }
-
 
     private var listener: FingerprintListener = object : FingerprintListener {
         override fun onError(i: Int) {
@@ -1034,3 +1092,4 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         return iPaxGLPage.pageToBitmap(page, widthFinal)
     }
 }
+
