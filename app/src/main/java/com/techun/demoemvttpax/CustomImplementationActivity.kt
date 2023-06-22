@@ -39,7 +39,6 @@ import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.entity.Tr
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.enums.CvmResultEnum
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.enums.TransResultEnum
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.*
-import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.EReaderType.*
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.interfaces.DetectCardContract
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.interfaces.IConvert
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.printer.exception.PrinterException

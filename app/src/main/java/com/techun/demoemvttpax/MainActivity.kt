@@ -1,25 +1,41 @@
 package com.techun.demoemvttpax
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.ActivityManager
+import android.app.WallpaperManager
+import android.content.ContentResolver
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.graphics.Point
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.os.*
+import android.provider.Settings
+import android.provider.Settings.SettingNotFoundException
+import android.provider.Settings.System
 import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.View
+import android.view.Window
+import android.view.WindowManager.LayoutParams
+import android.widget.SeekBar
+import android.widget.SeekBar.OnSeekBarChangeListener
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.pax.dal.IFingerprintReader
 import com.pax.dal.IFingerprintReader.FingerprintListener
 import com.pax.dal.entity.ETermInfoKey
 import com.pax.dal.entity.FingerprintResult
+import com.pax.dal.entity.PosMenu
 import com.pax.dal.exceptions.FingerprintDevException
 import com.pax.gl.page.IPage
 import com.pax.gl.page.PaxGLPage
@@ -40,9 +56,9 @@ import java.io.BufferedReader
 import java.io.FileReader
 import java.io.IOException
 import java.net.NetworkInterface
+import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.round
-import kotlin.math.roundToInt
 
 
 private const val FEATURE_ANSI_INCITS_378_2004 = 1
@@ -70,7 +86,9 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         Manifest.permission.ACCESS_WIFI_STATE,
         Manifest.permission.INTERNET,
         Manifest.permission.ACCESS_FINE_LOCATION,
-        Manifest.permission.ACCESS_COARSE_LOCATION
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.WRITE_SETTINGS,
+        Manifest.permission.SET_WALLPAPER
     )
 
     //Pages
@@ -87,6 +105,22 @@ class MainActivity : BaseActivity(), View.OnClickListener {
     private var feature_t2: ByteArray? = null
     private var time = 0
     private var time_ok = false
+
+
+    lateinit var locationManager: LocationManager
+    lateinit var gpsLocationListener: LocationListener
+    lateinit var networkLocationListener: LocationListener
+
+    //Variable to store brightness value
+    private var brightness = 0
+
+    //Content resolver used as a handle to the system's settings
+    private var cResolver: ContentResolver? = null
+
+    //Window object, that will store a reference to the current window
+    private var window: Window? = null
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -95,7 +129,10 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         initComponents()
     }
 
+    @SuppressLint("SetTextI18n")
     private fun initComponents() {
+        checkAndRequestPermissions()
+
         sdkTTPax = TTPaxApi(this)
 
         //Init PaxGLPage Libary
@@ -141,12 +178,116 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         binding.layoutUi.btnFingerPrintCompareFeature.setOnClickListener(this)
         binding.layoutUi.btnFingerPrintClose.setOnClickListener(this)
         binding.layoutUi.btnFingerPrintStop.setOnClickListener(this)
-
-
         binding.layoutUi.btnSysInfo.setOnClickListener(this)
-        checkAndRequestPermissions()
+        binding.layoutUi.btnSetWallpaper.setOnClickListener(this)
+        binding.layoutUi.btnReboot.setOnClickListener(this)
+        binding.layoutUi.btnShutdown.setOnClickListener(this)
 
+        //Brightness
+        cResolver = contentResolver
+        window = getWindow()
+        binding.layoutUi.sbBrightness.max = 255
+        binding.layoutUi.sbBrightness.keyProgressIncrement = 1
+        try {
+            brightness = System.getInt(cResolver, System.SCREEN_BRIGHTNESS)
+        } catch (e: SettingNotFoundException) {
+            logs("Error brightness - Cannot access system brightness")
+        }
+
+        binding.layoutUi.sbBrightness.progress = brightness
+        val perc: Float = brightness / 255f * 100
+        binding.layoutUi.tvBrightnessPorcent.text = perc.toInt().toString() + " %"
+
+        binding.layoutUi.sbBrightness.setOnSeekBarChangeListener(object : OnSeekBarChangeListener {
+            @RequiresApi(Build.VERSION_CODES.M)
+            override fun onStopTrackingTouch(seekBar: SeekBar) {
+                setScreenBrightness((brightness / 255f * 100).toInt())
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar) {
+                //Nothing handled here
+
+            }
+
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                //Set the minimal brightness level
+                brightness = progress
+                //Calculate the brightness percentage
+                val perc: Float = brightness / 255f * 100
+                //Set the brightness percentage
+                binding.layoutUi.tvBrightnessPorcent.text = perc.toInt().toString() + " %"
+            }
+        })
+
+        //Congis
+        binding.layoutUi.swEnableStatusBar.setOnCheckedChangeListener { _, isChecked ->
+            val status = !isChecked
+            val systemConfig = sdkTTPax.getDal(applicationContext)!!.sys
+            systemConfig.enableStatusBar(status) // Con esto bloquemos la statusbar
+        }
+
+        binding.layoutUi.swSettingsNeedPassword.setOnCheckedChangeListener { _, isChecked ->
+            val status = !isChecked
+            val systemConfig = sdkTTPax.getDal(applicationContext)!!.sys
+            systemConfig.setSettingsNeedPassword(!status) // Con esto bloquemos la statusbar
+        }
+
+        binding.layoutUi.swBt.setOnCheckedChangeListener { _, isChecked ->
+            updateSettings(PosMenu.BT, isChecked)
+            updateSettings(PosMenu.QS_BT, isChecked)
+            updateSettings(PosMenu.BT_TETHER, isChecked)
+            Toast.makeText(applicationContext, "$isChecked", Toast.LENGTH_SHORT).show()
+        }
+
+        binding.layoutUi.swWifi.setOnCheckedChangeListener { _, isChecked ->
+            updateSettings(PosMenu.WIFI, isChecked)
+            updateSettings(PosMenu.QS_WIFI, isChecked)
+            Toast.makeText(applicationContext, "$isChecked", Toast.LENGTH_SHORT).show()
+        }
     }
+
+    private fun updateSettings(posMenu: PosMenu, status: Boolean) {
+        val systemConfig = sdkTTPax.getDal(applicationContext)!!.sys
+        val configuraciones: MutableMap<PosMenu, Boolean> =
+            EnumMap(com.pax.dal.entity.PosMenu::class.java)
+        configuraciones[posMenu] = status
+        systemConfig.disablePosMenu(configuraciones)
+    }
+
+    fun configuracionesPOS() {
+        try {
+            val configuraciones: MutableMap<PosMenu, Boolean> =
+                EnumMap(com.pax.dal.entity.PosMenu::class.java)
+            configuraciones[PosMenu.BT] = true
+            configuraciones[PosMenu.QS_BT] = true
+            configuraciones[PosMenu.WIFI] = true
+            configuraciones[PosMenu.QS_WIFI] = true
+            configuraciones[PosMenu.GL_AIRPLANE] = true
+            configuraciones[PosMenu.QS_AIRPLANE] = true
+            val systemConfig = sdkTTPax.getDal(applicationContext)!!.sys
+            systemConfig.disablePosMenu(configuraciones) //Cargamos las configuraciones que queremos que sean visibles
+
+
+
+
+
+            systemConfig.enableStatusBar(true) // Con esto bloquemos la statusbar
+            systemConfig.setSettingsNeedPassword(false) // Pedir contraseña de configuraciones
+
+
+            logs("Settings Applied!")
+        } catch (ex: java.lang.Exception) {
+            logs("Error ${ex.message}")
+        }
+    }
+
+    private fun changeWriteSettingsPermission() {
+        val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS)
+        startActivity(intent)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.M)
+    private fun hasWriteSettingsPermission(context: Context) = System.canWrite(context)
 
     private fun checkAndRequestPermissions() {
         val permissionsToRequest = ArrayList<String>()
@@ -176,7 +317,8 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             for (i in grantResults.indices) {
                 if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
                     // El permiso no fue concedido, puedes manejar esta situación según tus necesidades
-                    Toast.makeText(this, "Access denied for ${grantResults[i]}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Access denied for ${grantResults[i]}", Toast.LENGTH_SHORT)
+                        .show()
                 }
             }
         }
@@ -528,13 +670,13 @@ class MainActivity : BaseActivity(), View.OnClickListener {
     private fun logs(msg: String?) {
         Log.d("logs-demo-app", "$msg")
         binding.layoutUi.tvLogs.append("$msg \n")
+//        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
     }
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun onClick(v: View?) {
         val id = v?.id
         binding.layoutUi.tvTags.text = ""
-        logs("")
         when (id) {
             //Printer
             R.id.btnTestPaxPrinter -> {
@@ -765,18 +907,164 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                     }
                 }
 
-                var longitude = 0.0
-                var latitude = 0.0
-                val finder = LocationFinder(this)
+                //Location
+                GlobalScope.launch {
+                    logs("\n\nLocation :\n")
 
-                if (finder.canGetLocation()){
-                    longitude = finder.getLongitud()
-                    latitude = finder.getLatitud()
-                    Toast.makeText(this, "lat-lng “ + $latitude + “ — “ + $longitude", Toast.LENGTH_LONG).show()
+                    var locationByNetwork: Location
+                    var locationByGps: Location
+                    locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+                    val hasGps = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+                    val hasNetwork =
+                        locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+//
+                    /*logs("locationManager hasGps: $hasGps\n")
+                    logs("locationManager hasNetwork: $hasNetwork\n")*/
+
+                    gpsLocationListener = object : LocationListener {
+                        override fun onLocationChanged(location: Location) {
+                            locationByGps = location
+                            val date: Date = Calendar.getInstance().time
+                            val sdf = SimpleDateFormat("hh:mm:ss a")
+                            Log.e("SPLASH", "Updated at : " + sdf.format(date))
+//                            logs("gpsLocationListener onLocationChanged Updated at : " + sdf.format(date) + "\n")
+                            val latitude = locationByGps.latitude.toString()
+                            val longitude = locationByGps.longitude.toString()
+                            Log.e("GPSL", "onLocationChanged: latitude : $latitude ")
+//                            logs("gpsLocationListener onLocationChanged latitude : $latitude\n")
+//                            logs("gpsLocationListener onLocationChanged longitude : $longitude\n")
+                            // You can now create a LatLng Object for use with maps
+                            locationManager.removeUpdates(gpsLocationListener)
+                        }
+
+
+                        override fun onStatusChanged(
+                            provider: String,
+                            status: Int,
+                            extras: Bundle
+                        ) {
+                        }
+
+                        override fun onProviderEnabled(provider: String) {}
+                        override fun onProviderDisabled(provider: String) {
+                            Log.e("onProviderDisabled", "onProviderDisabled: $provider")
+                        }
+                    }
+
+                    networkLocationListener = object : LocationListener {
+                        override fun onLocationChanged(location: Location) {
+                            locationByNetwork = location
+                            val date: Date = Calendar.getInstance().time
+                            val sdf = SimpleDateFormat("hh:mm:ss a")
+                            Log.e("SPLASH", "Updated at : " + sdf.format(date))
+//                            logs(
+//                                "networkLocationListener onLocationChanged Updated at : " + sdf.format(
+//                                    date
+//                                ) + "\n"
+//                            )
+                            val latitude = locationByNetwork.latitude.toString()
+                            val longitude = locationByNetwork.longitude.toString()
+                            Log.e("GPSL", "onLocationChanged: latitude : $latitude ")
+//                            logs("networkLocationListener onLocationChanged latitude : $latitude\n")
+//                            logs("networkLocationListener onLocationChanged longitude : $longitude\n")
+                            // You can now create a LatLng Object for use with maps
+                            locationManager.removeUpdates(networkLocationListener)
+                        }
+
+
+                        override fun onStatusChanged(
+                            provider: String,
+                            status: Int,
+                            extras: Bundle
+                        ) {
+                        }
+
+                        override fun onProviderEnabled(provider: String) {}
+                        override fun onProviderDisabled(provider: String) {}
+                    }
+
+                    if (ActivityCompat.checkSelfPermission(
+                            this@MainActivity,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                        ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                            this@MainActivity,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        ) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        // TODO: Consider calling
+                        //    ActivityCompat#requestPermissions
+                        // here to request the missing permissions, and then overriding
+                        //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                        //                                          int[] grantResults)
+                        // to handle the case where the user grants the permission. See the documentation
+                        // for ActivityCompat#requestPermissions for more details.
+
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            logs("locationManager hasNetwork: $hasNetwork\n")
+
+                            if (hasGps) {
+                                locationManager.requestLocationUpdates(
+                                    LocationManager.GPS_PROVIDER,
+                                    1000,
+                                    0F,
+                                    gpsLocationListener
+                                )
+                            }
+
+
+                            if (hasNetwork) {
+                                locationManager.requestLocationUpdates(
+                                    LocationManager.NETWORK_PROVIDER,
+                                    1000,
+                                    0F,
+                                    networkLocationListener
+                                )
+                            }
+                        }
+                    }
                 }
+            }
+
+            //Set Wallpaper
+            R.id.btnSetWallpaper -> {
+                // creating the instance of the WallpaperManager
+                val wallpaperManager = WallpaperManager.getInstance(applicationContext)
+                try {
+                    // set the wallpaper by calling the setResource function and
+                    // passing the drawable file
+                    wallpaperManager.setResource(R.drawable.wallpaper)
+                    logs("Settings Applied!")
+                } catch (e: IOException) {
+                    // here the errors can be logged instead of printStackTrace
+                    logs("Error set wallpapaer - ${e.printStackTrace()}")
+                }
+            }
+
+            R.id.btnReboot -> {
+                rebootTerminal()
+            }
+            R.id.btnShutdown -> {
+                shutdownTerminal()
             }
         }
     }
+
+    private fun rebootTerminal() {
+        val systemConfig = sdkTTPax.getDal(applicationContext)!!.sys
+        systemConfig.reboot()
+    }
+
+    private fun shutdownTerminal() {
+        val systemConfig = sdkTTPax.getDal(applicationContext)!!.sys
+        systemConfig.shutdown()
+    }
+
+    private fun setScreenBrightness(level: Int) {
+        val systemConfig = sdkTTPax.getDal(applicationContext)!!.sys
+        systemConfig.setScreenBrightness(level)
+    }
+
 
     private fun getInstallationDate(context: Context, packageName: String): Date? {
         val packageManager: PackageManager = context.packageManager
@@ -788,21 +1076,6 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             e.printStackTrace()
         }
         return null
-    }
-
-    private fun obtenerPorcentajeCPU(): String {
-        val totalCpuTime = Debug.threadCpuTimeNanos()
-        val totalElapsedTime = System.nanoTime()
-
-        // Realizar alguna tarea que consuma CPU aquí
-
-        val cpuTime = Debug.threadCpuTimeNanos() - totalCpuTime
-        val elapsedTime = System.nanoTime() - totalElapsedTime
-
-        val porcentajeCPU = (cpuTime.toDouble() / elapsedTime.toDouble()) * 100.0
-        val porcentajeRedondeado = porcentajeCPU.roundToInt()
-
-        return "$porcentajeRedondeado%"
     }
 
     private fun getCpuInfo(): Array<String> {
@@ -891,6 +1164,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         }
         return null
     }
+
 
     private var listener: FingerprintListener = object : FingerprintListener {
         override fun onError(i: Int) {

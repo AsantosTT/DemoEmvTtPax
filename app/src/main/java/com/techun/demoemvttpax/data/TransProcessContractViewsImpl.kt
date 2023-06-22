@@ -4,8 +4,10 @@ import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.TransProcessContr
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.entity.TransResult
 import javax.inject.Inject
 
-class TransProcessContractViewsImpl @Inject constructor():TransProcessContract.View {
-    override fun onUpdatePinLen(p0: String?) {
+class TransProcessContractViewsImpl @Inject constructor() : TransProcessContract.View {
+
+    //Pin
+    override fun onUpdatePinLen(pin: String?) {
         TODO("Not yet implemented")
     }
 
@@ -13,19 +15,21 @@ class TransProcessContractViewsImpl @Inject constructor():TransProcessContract.V
         TODO("Not yet implemented")
     }
 
-    override fun onEnterPinFinish(p0: Int) {
+    override fun onEnterPinFinish(pinResult: Int) {
         TODO("Not yet implemented")
     }
 
-    override fun onStartEnterPin(p0: String?) {
+    override fun onStartEnterPin(prompt: String?) {
         TODO("Not yet implemented")
     }
 
-    override fun onTransFinish(p0: TransResult?) {
+
+    //Trans
+    override fun onTransFinish(transResult: TransResult?) {
         TODO("Not yet implemented")
     }
 
-    override fun onCompleteTrans(p0: TransResult?) {
+    override fun onCompleteTrans(transResult: TransResult?) {
         TODO("Not yet implemented")
     }
 

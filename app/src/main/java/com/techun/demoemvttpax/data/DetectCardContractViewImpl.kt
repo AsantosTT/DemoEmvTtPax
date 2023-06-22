@@ -5,7 +5,12 @@ import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.interfaces.
 import javax.inject.Inject
 
 class DetectCardContractViewImpl @Inject constructor() : DetectCardContract.View {
-    override fun onMagDetectOK(p0: String?, p1: String?, p2: String?, p3: String?) {
+    override fun onMagDetectOK(
+        pan: String?,
+        expiryDate: String?,
+        Track1: String?,
+        Track2: String?
+    ) {
         TODO("Not yet implemented")
     }
 
@@ -17,7 +22,7 @@ class DetectCardContractViewImpl @Inject constructor() : DetectCardContract.View
         TODO("Not yet implemented")
     }
 
-    override fun onDetectError(p0: DetectCardResult.ERetCode?) {
+    override fun onDetectError(errorCode: DetectCardResult.ERetCode?) {
         TODO("Not yet implemented")
     }
 }

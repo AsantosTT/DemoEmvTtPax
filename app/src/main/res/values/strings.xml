@@ -58,4 +58,13 @@ PREFERIRNOS|---- COPIA ESTABLECIMIENTO ----|</string>
     <string name="Approved">APROBADA</string>
     <string name="Auth">Aut</string>
     <string name="press_fingerprint">Press the fingerprint</string>
+    <string name="system_config">System Config</string>
+    <string name="set_wallpaper">Set Wallpaper</string>
+    <string name="brightness">Brightness</string>
+    <string name="bt">BT</string>
+    <string name="wifi">WIFI</string>
+    <string name="enable_statusbar">Enable StatusBar</string>
+    <string name="settings_need_password">Settings Need Password</string>
+    <string name="reboot">Reboot</string>
+    <string name="shutdown">Shutdown</string>
 </resources>
