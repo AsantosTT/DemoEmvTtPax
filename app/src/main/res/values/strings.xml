@@ -67,4 +67,6 @@ PREFERIRNOS|---- COPIA ESTABLECIMIENTO ----|</string>
     <string name="settings_need_password">Settings Need Password</string>
     <string name="reboot">Reboot</string>
     <string name="shutdown">Shutdown</string>
+    <string name="mobile_data">Mobile Data</string>
+    <string name="airplane_mode">Airplane Mode</string>
 </resources>

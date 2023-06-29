@@ -4,9 +4,9 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.ActivityManager
 import android.app.WallpaperManager
+import android.bluetooth.BluetoothAdapter
 import android.content.ContentResolver
 import android.content.Context
-import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -16,15 +16,14 @@ import android.graphics.Point
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.net.wifi.WifiManager
 import android.os.*
-import android.provider.Settings
 import android.provider.Settings.SettingNotFoundException
 import android.provider.Settings.System
 import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.View
 import android.view.Window
-import android.view.WindowManager.LayoutParams
 import android.widget.SeekBar
 import android.widget.SeekBar.OnSeekBarChangeListener
 import android.widget.Toast
@@ -88,6 +87,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         Manifest.permission.ACCESS_FINE_LOCATION,
         Manifest.permission.ACCESS_FINE_LOCATION,
         Manifest.permission.WRITE_SETTINGS,
+        Manifest.permission.BLUETOOTH_CONNECT,
         Manifest.permission.SET_WALLPAPER
     )
 
@@ -220,6 +220,17 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         })
 
         //Congis
+
+        //Init Sw
+        // Declaring Bluetooth adapter
+        val mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
+        binding.layoutUi.swBt.isChecked = mBluetoothAdapter.isEnabled
+
+        //Declaring Wifi
+        val wifi = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
+        binding.layoutUi.swWifi.isChecked = wifi.isWifiEnabled
+
+
         binding.layoutUi.swEnableStatusBar.setOnCheckedChangeListener { _, isChecked ->
             val status = !isChecked
             val systemConfig = sdkTTPax.getDal(applicationContext)!!.sys
@@ -233,17 +244,29 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         }
 
         binding.layoutUi.swBt.setOnCheckedChangeListener { _, isChecked ->
-            updateSettings(PosMenu.BT, isChecked)
-            updateSettings(PosMenu.QS_BT, isChecked)
-            updateSettings(PosMenu.BT_TETHER, isChecked)
+            if (isChecked) {
+                if (ActivityCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.BLUETOOTH_CONNECT
+                    ) != PackageManager.PERMISSION_GRANTED
+                ) {
+                }
+                mBluetoothAdapter.enable()
+            } else {
+                mBluetoothAdapter.disable()
+            }
+
             Toast.makeText(applicationContext, "$isChecked", Toast.LENGTH_SHORT).show()
         }
 
         binding.layoutUi.swWifi.setOnCheckedChangeListener { _, isChecked ->
-            updateSettings(PosMenu.WIFI, isChecked)
-            updateSettings(PosMenu.QS_WIFI, isChecked)
+            /*updateSettings(PosMenu.WIFI, isChecked)
+            updateSettings(PosMenu.QS_WIFI, isChecked)*/
+            wifi.isWifiEnabled = isChecked
             Toast.makeText(applicationContext, "$isChecked", Toast.LENGTH_SHORT).show()
         }
+
+        val langage = Locale.getDefault().language.toString()
     }
 
     private fun updateSettings(posMenu: PosMenu, status: Boolean) {
@@ -268,9 +291,6 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             systemConfig.disablePosMenu(configuraciones) //Cargamos las configuraciones que queremos que sean visibles
 
 
-
-
-
             systemConfig.enableStatusBar(true) // Con esto bloquemos la statusbar
             systemConfig.setSettingsNeedPassword(false) // Pedir contraseña de configuraciones
 
@@ -280,14 +300,6 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             logs("Error ${ex.message}")
         }
     }
-
-    private fun changeWriteSettingsPermission() {
-        val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS)
-        startActivity(intent)
-    }
-
-    @RequiresApi(Build.VERSION_CODES.M)
-    private fun hasWriteSettingsPermission(context: Context) = System.canWrite(context)
 
     private fun checkAndRequestPermissions() {
         val permissionsToRequest = ArrayList<String>()
