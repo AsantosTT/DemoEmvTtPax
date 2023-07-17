@@ -32,6 +32,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.pax.dal.IFingerprintReader
 import com.pax.dal.IFingerprintReader.FingerprintListener
+import com.pax.dal.entity.EPedType
 import com.pax.dal.entity.ETermInfoKey
 import com.pax.dal.entity.FingerprintResult
 import com.pax.dal.entity.PosMenu
@@ -40,8 +41,10 @@ import com.pax.gl.page.IPage
 import com.pax.gl.page.PaxGLPage
 import com.pax.neptunelite.api.NeptuneLiteUser
 import com.techun.demoemvttpax.databinding.ActivityMainBinding
+import com.tecnologiatransaccional.ttpaxsdk.App
 import com.tecnologiatransaccional.ttpaxsdk.TTPaxApi
 import com.tecnologiatransaccional.ttpaxsdk.base.BaseActivity
+import com.tecnologiatransaccional.ttpaxsdk.neptune.Sdk
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.TagsTable
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.entity.EOnlineResult
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.enums.TransResultEnum
@@ -137,6 +140,14 @@ class MainActivity : BaseActivity(), View.OnClickListener {
 
         //Init PaxGLPage Libary
         iPaxGLPage = PaxGLPage.getInstance(this)
+
+        val ped = Sdk.isPaxDevice()
+        logs("Is PAX Device: $ped")
+        logs("Is PAX Device: ${Build.DISPLAY}")
+        logs("Is PAX Device: ${Build.DEVICE}")
+        logs("Is PAX Device: ${Build.MODEL}")
+        logs("Is PAX Device: ${Build.PRODUCT}")
+        logs("Is PAX Device: ${Build.MANUFACTURER}")
 
         //Init SDK
         sdkTTPax.init({
@@ -246,8 +257,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         binding.layoutUi.swBt.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
                 if (ActivityCompat.checkSelfPermission(
-                        this,
-                        Manifest.permission.BLUETOOTH_CONNECT
+                        this, Manifest.permission.BLUETOOTH_CONNECT
                     ) != PackageManager.PERMISSION_GRANTED
                 ) {
                 }
@@ -312,17 +322,13 @@ class MainActivity : BaseActivity(), View.OnClickListener {
 
         if (permissionsToRequest.isNotEmpty()) {
             ActivityCompat.requestPermissions(
-                this,
-                permissionsToRequest.toTypedArray(),
-                PERMISSION_REQUEST_CODE
+                this, permissionsToRequest.toTypedArray(), PERMISSION_REQUEST_CODE
             )
         }
     }
 
     override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSION_REQUEST_CODE) {
@@ -542,10 +548,12 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                     Utils.logsUtils("TXN_TYPE_PICC")
                     glStatus.GetInstance().currentReaderType = EReaderType.PICC.eReaderType.toInt()
                 }
+
                 Utils.TXN_TYPE_MAG -> {
                     Utils.logsUtils("TXN_TYPE_MAG")
                     glStatus.GetInstance().currentReaderType = EReaderType.MAG.eReaderType.toInt()
                 }
+
                 Utils.TXN_TYPE_ICC -> {
                     Utils.logsUtils("TXN_TYPE_ICC")
                     glStatus.GetInstance().currentReaderType = EReaderType.ICC.eReaderType.toInt()
@@ -579,6 +587,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
 
                 sortTags(if (aid == EMVUtils.CardBrand.VISA) visaIcc else mcIcc)
             }
+
             EReaderType.PICC.eReaderType.toInt() -> {
                 val visaPicc = resources.getIntArray(R.array.visa_picc)
                 val mcPicc = resources.getIntArray(R.array.mc_picc)
@@ -596,9 +605,11 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             EMVUtils.CardBrand.VISA -> {
                 shorted = glStatus.GetInstance().tranEMVTags.GetTLVasHexString(shortedTagsList)
             }
+
             EMVUtils.CardBrand.MASTERCARD -> {
                 shorted = glStatus.GetInstance().tranEMVTags.GetTLVasHexString(shortedTagsList)
             }
+
             EMVUtils.CardBrand.AMEX -> {}
             EMVUtils.CardBrand.JCB -> {}
             EMVUtils.CardBrand.DISCOVER -> {}
@@ -670,9 +681,11 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                 //Si se quiere procesar el segundo criptograma en contactless 2ndGAC PICC poner en true;
                 glStatus.GetInstance().Need2ndGAC = false
             }
+
             EReaderType.ICC -> glStatus.GetInstance().Need2ndGAC = true
             EReaderType.MAG -> {
             }
+
             else -> throw IllegalStateException("Unexpected value: " + glStatus.GetInstance().currentReaderType)
         }
 
@@ -713,6 +726,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                     }
                 }
             }
+
             R.id.btnTestCustomPrinter -> {
                 progressbar(true, getString(R.string.printing_voucher_please_wait))
                 GlobalScope.launch {
@@ -761,6 +775,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                     e.printStackTrace()
                 }
             }
+
             R.id.btnFingerPrintExtracImage -> {
                 logs("Extract Image")
                 time = 0
@@ -795,6 +810,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                     logs("App" + e.message)
                 }
             }
+
             R.id.btnFingerPrintExtracFeature -> {
                 try {
                     reader.extractFeature(FEATURE_ANSI_INCITS_378_2004,
@@ -809,6 +825,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                     e.printStackTrace()
                 }
             }
+
             R.id.btnFingerPrintCompareFeature -> {
                 if (test_time == 0) {
                     logs("Press fingerprints")
@@ -821,6 +838,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                     e.printStackTrace()
                 }
             }
+
             R.id.btnFingerPrintClose -> {
                 try {
                     reader.close()
@@ -829,6 +847,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                     logs("App" + e.message)
                 }
             }
+
             R.id.btnFingerPrintStop -> {
                 try {
                     reader.stop()
@@ -951,9 +970,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
 
 
                         override fun onStatusChanged(
-                            provider: String,
-                            status: Int,
-                            extras: Bundle
+                            provider: String, status: Int, extras: Bundle
                         ) {
                         }
 
@@ -985,9 +1002,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
 
 
                         override fun onStatusChanged(
-                            provider: String,
-                            status: Int,
-                            extras: Bundle
+                            provider: String, status: Int, extras: Bundle
                         ) {
                         }
 
@@ -996,11 +1011,9 @@ class MainActivity : BaseActivity(), View.OnClickListener {
                     }
 
                     if (ActivityCompat.checkSelfPermission(
-                            this@MainActivity,
-                            Manifest.permission.ACCESS_FINE_LOCATION
+                            this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION
                         ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                            this@MainActivity,
-                            Manifest.permission.ACCESS_COARSE_LOCATION
+                            this@MainActivity, Manifest.permission.ACCESS_COARSE_LOCATION
                         ) != PackageManager.PERMISSION_GRANTED
                     ) {
                         // TODO: Consider calling
@@ -1017,10 +1030,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
 
                             if (hasGps) {
                                 locationManager.requestLocationUpdates(
-                                    LocationManager.GPS_PROVIDER,
-                                    1000,
-                                    0F,
-                                    gpsLocationListener
+                                    LocationManager.GPS_PROVIDER, 1000, 0F, gpsLocationListener
                                 )
                             }
 
@@ -1056,6 +1066,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             R.id.btnReboot -> {
                 rebootTerminal()
             }
+
             R.id.btnShutdown -> {
                 shutdownTerminal()
             }
@@ -1228,7 +1239,10 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             "商户存根", Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_BOLD
         )
         page.addLine().addUnit(
-            "商户存根", Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE
+            "商户存根",
+            Utils.FONT_NORMAL,
+            IPage.EAlign.RIGHT,
+            IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE
         )
         page.addLine().addUnit(
             "商户存根",
@@ -1247,7 +1261,11 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             1f
         )
         page.addLine().addUnit(
-            "商户存根", Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
+            "商户存根",
+            Utils.FONT_NORMAL,
+            IPage.EAlign.RIGHT,
+            IPage.ILine.IUnit.TEXT_STYLE_NORMAL,
+            1f
         )
         page.addLine().addUnit("-----------------------------------------", Utils.FONT_NORMAL)
         page.addLine().addUnit("商户名称: " + "百富计算机技术", Utils.FONT_NORMAL)
