@@ -141,7 +141,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         //Init PaxGLPage Libary
         iPaxGLPage = PaxGLPage.getInstance(this)
 
-        val ped = Sdk.isPaxDevice()
+        val ped = Sdk.isPaxDevice
         logs("Is PAX Device: $ped")
         logs("Is PAX Device: ${Build.DISPLAY}")
         logs("Is PAX Device: ${Build.DEVICE}")
@@ -150,7 +150,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         logs("Is PAX Device: ${Build.MANUFACTURER}")
 
         //Init SDK
-        sdkTTPax.init({
+        sdkTTPax.initPaxSdk({
             //Exitoso
             Utils.logsUtils("PAX is working correctly")
             try {

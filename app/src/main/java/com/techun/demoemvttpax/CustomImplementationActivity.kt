@@ -90,7 +90,7 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
         iPaxGLPage = PaxGLPage.getInstance(this)
 
         //Init SDK
-        sdkTTPax.init({
+        sdkTTPax.initPaxSdk({
             //Exitoso
             Utils.logsUtils("PAX is working correctly")
         }, {

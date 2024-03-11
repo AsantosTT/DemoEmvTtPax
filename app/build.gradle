@@ -7,11 +7,11 @@ plugins {
 
 android {
     namespace 'com.techun.demoemvttpax'
-    compileSdk 33
+    compileSdk 34
 
     defaultConfig {
         applicationId "com.techun.demoemvttpax"
-        minSdk 21
+        minSdk 23
         targetSdk 33
         versionCode 1
         versionName "1.0"
@@ -19,7 +19,7 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
-            abiFilters "armeabi"
+            abiFilters "armeabi","arm64-v8a","arm64-v7a","x86","x86_64"
         }
     }
 
@@ -30,11 +30,6 @@ android {
         }
     }
 
-    sourceSets {
-        main {
-            jniLibs.srcDirs = ['../TTPaxsdk/src/main/jnilibs']
-        }
-    }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -55,8 +50,8 @@ android {
 }
 
 dependencies {
-    implementation fileTree(dir: "../TTPaxsdk/libs", include: ["*.jar", "*.aar"])
-    implementation files('../libs/TTPaxsdk_V1.0.0_202303.aar')
+    implementation fileTree(dir: "libs", include: ["*.jar", "*.aar"])
+    implementation files('libs/ttpaxsdk_v2_0_0.aar')
 
     implementation 'androidx.core:core-ktx:1.10.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
