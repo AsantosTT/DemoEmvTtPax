@@ -1,4 +1,4 @@
-package com.techun.demoemvttpax
+package com.techun.demoemvttpax.ui.activities
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -25,12 +25,11 @@ import com.pax.gl.page.IPage
 import com.pax.gl.page.PaxGLPage
 import com.pax.jemv.clcommon.ByteArray
 import com.pax.jemv.clcommon.RetCode
+import com.techun.demoemvttpax.R
 import com.techun.demoemvttpax.databinding.ActivityCustomImplementationBinding
-import com.tecnologiatransaccional.ttpaxsdk.App
 import com.tecnologiatransaccional.ttpaxsdk.TTPaxApi
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.emv_reader.TransProcessPresenter
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.TagsTable
-import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.TransProcessContract
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.param.EmvTransParam
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.contact.EmvProcess
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.contactless.ClssProcess
@@ -38,7 +37,17 @@ import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.entity.EO
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.entity.TransResult
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.enums.CvmResultEnum
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.enums.TransResultEnum
-import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.*
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.AppDataUtils
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.ConvertHelper
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.DetectCardResult
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.Device
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.EMVUtils
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.MiscUtils
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.NeptunePollingPresenter
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.ScreenUtils
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.TimeRecordUtils
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.TrackUtils
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.glStatus
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.interfaces.DetectCardContract
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.interfaces.IConvert
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.printer.exception.PrinterException
@@ -48,8 +57,8 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.View,
-    DetectCardContract.View, View.OnClickListener {
+class CustomImplementationActivity : AppCompatActivity(), DetectCardContract.View,
+    View.OnClickListener {
 
     //Printer
     lateinit var iPaxGLPage: PaxGLPage
@@ -105,24 +114,18 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
     }
 
     //Config Trans
-    private fun initEmvTransaction(amount: Long, readType: EReaderType = EReaderType.MAG_ICC_PICC) {
+    private fun initEmvTransaction(amount: Long, readType: EReaderType = EReaderType.MAG) {
         transType = 0x00.toByte()
         transAmt = amount
         val otherAmount = ("0".toDouble() * 100).toLong()
         otherAmt = otherAmount
-
-        initTransProcessPresenter()
-
-        if (readMSRCardOnly == 0) {
-            transPreProcess(true)
-        }
 
         glStatus.GetInstance().tranEMVTags.Clear()
         glStatus.GetInstance().tranEMVResponseTags.Clear()
 
         var tmp = readType.toString()
 
-        if (tmp.isEmpty()) tmp = EReaderType.MAG_ICC_PICC.toString()
+        if (tmp.isEmpty()) tmp = EReaderType.MAG.toString()
 
         readerType = EReaderType.valueOf(tmp)
 
@@ -144,12 +147,6 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
         detectPresenter!!.startDetectCard(readType)
     }
 
-    private fun initTransProcessPresenter() {
-        if (transProcessPresenter == null) {
-            transProcessPresenter = TransProcessPresenter()
-            transProcessPresenter!!.attachView(this)
-        }
-    }
 
     private fun transPreProcess(isNeedContact: Boolean) {
         try {
@@ -205,34 +202,40 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
                 startDetectCard(EReaderType.MAG)
                 // onMagDetectOk will callback
             }
+
             (currTransResultEnum === TransResultEnum.RESULT_CLSS_SEE_PHONE) -> {
                 //contactless
                 //PICC return  USE_CONTACT 1.restart detect(insert/swipe) card and transaction
                 Device.beepPrompt()
                 startClssTransAgain()
             }
+
             (currTransResultEnum === TransResultEnum.RESULT_CLSS_TRY_ANOTHER_INTERFACE || transResult.resultCode == RetCode.CLSS_USE_CONTACT) -> {
                 //contactless
                 Device.beepErr()
                 Utils.logsUtils(getString(R.string.prompt_try_another_interface))
                 startDetectCard(EReaderType.ICC)
             }
+
             (currTransResultEnum === TransResultEnum.RESULT_TRY_AGAIN) -> {
                 //contactless
                 //PICC return  USE_CONTACT 1.restart detect card and transaction
                 Device.beepErr()
                 startClssTransAgain()
             }
+
             (transResult.resultCode == RetCode.ICC_CMD_ERR) -> {
                 //Se dat cuando se desliza una tarjeta Contactless
                 Device.beepErr()
                 Utils.logsUtils(getString(R.string.error_reading_card))
                 startDetectCard(readerType!!)
             }
+
             (transResult.resultCode == RetCode.EMV_DENIAL || transResult.resultCode == RetCode.CLSS_DECLINE) -> {
                 //to result page to get tag95 and tag 9b to find the reason of deciline
                 processFinishTransaction()
             }
+
             else -> {
                 onDetectError(DetectCardResult.ERetCode.ERR_OTHER)
 //                errorFinishedTransaction("Error code: ${transResult.resultCode}")
@@ -250,6 +253,7 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
                         )
                     }\n${getString(R.string.CardDeclinedTransaction)}"
                 )
+
                 TransResultEnum.RESULT_ONLINE_DENIED -> offlineProccess(
                     "Title: ${
                         getString(
@@ -257,9 +261,11 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
                         )
                     }\n${getString(R.string.HostDeclinedTransaction)}, ${glStatus.GetInstance().ResponseCode}"
                 )
+
                 TransResultEnum.RESULT_ONLINE_CARD_DENIED, TransResultEnum.RESULT_OFFLINE_DENIED -> offlineProccess(
                     "Title: ${getString(R.string.Declined)}\n${getString(R.string.CardDeclinedTransaction)}"
                 )
+
                 TransResultEnum.RESULT_ONLINE_APPROVED -> {
                     //TODO: Imprimir Voucher, guardar la transaccion en el Log
                     // glStatus.GetIntance() contiene todos los datos de la transaccion.
@@ -282,6 +288,7 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
                         }\nAuthCode:${glStatus.GetInstance().AuthCode}"
                     )
                 }
+
                 TransResultEnum.RESULT_EMV_FAIL -> offlineProccess(
                     "Title: ${getString(R.string.EMVProcessFail)}\n${
                         getString(
@@ -297,6 +304,7 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
                         )
                     }"
                 )
+
                 else -> offlineProccess(
                     "Title: ${getString(R.string.TranFailed)}\n${
                         getString(
@@ -314,6 +322,7 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
                 Utils.TXN_TYPE_ICC -> {
                     transProcessPresenter!!.completeEmvTrans(glStatus.GetInstance().issuerRspData)
                 }
+
                 Utils.TXN_TYPE_PICC or Utils.TXN_TYPE_MAG -> {
                     proccessEmvComplete()
                 }
@@ -331,6 +340,7 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
             Utils.TXN_TYPE_ICC -> {
                 ret = EmvProcess.getInstance().getTlv(Tag, byteArray)
             }
+
             Utils.TXN_TYPE_PICC -> {
                 ret = ClssProcess.getInstance().getTlv(Tag, byteArray)
             }
@@ -363,6 +373,7 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
 
                 sortTags(if (aid == EMVUtils.CardBrand.VISA) visaIcc else mcIcc)
             }
+
             EReaderType.PICC.eReaderType.toInt() -> {
                 val visaPicc = resources.getIntArray(R.array.visa_picc)
                 val mcPicc = resources.getIntArray(R.array.mc_picc)
@@ -430,10 +441,13 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
                 //Si se quiere procesar el segundo criptograma en contactless 2ndGAC PICC poner en true;
                 glStatus.GetInstance().Need2ndGAC = false
             }
+
             com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.EReaderType.ICC -> glStatus.GetInstance().Need2ndGAC =
                 true
+
             com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.EReaderType.MAG -> {
             }
+
             else -> throw IllegalStateException("Unexpected value: " + glStatus.GetInstance().currentReaderType)
         }
 
@@ -510,7 +524,13 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
                 }
 
                 tagdata = extractTag(TagsTable.T_5F2A_CURRENCY_CODE, true)
-                Utils.logsUtils("KEY= ${TagsTable.T_5F2A_CURRENCY_CODE} VALUE= ${MiscUtils.bytes2HexStr(tagdata)}")
+                Utils.logsUtils(
+                    "KEY= ${TagsTable.T_5F2A_CURRENCY_CODE} VALUE= ${
+                        MiscUtils.bytes2HexStr(
+                            tagdata
+                        )
+                    }"
+                )
 
 
                 //2020-08-23 En contactless el Kernel no esta regresando el TAG 5F2A de MC
@@ -638,11 +658,13 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
                     glStatus.GetInstance().currentReaderType =
                         com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.EReaderType.PICC.eReaderType.toInt()
                 }
+
                 Utils.TXN_TYPE_MAG -> {
                     Utils.logsUtils("TXN_TYPE_MAG")
                     glStatus.GetInstance().currentReaderType =
                         com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.EReaderType.MAG.eReaderType.toInt()
                 }
+
                 Utils.TXN_TYPE_ICC -> {
                     Utils.logsUtils("TXN_TYPE_ICC")
                     glStatus.GetInstance().currentReaderType =
@@ -660,78 +682,6 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
         onDetectError(DetectCardResult.ERetCode.ERR_OTHER)
     }
 
-
-    //EMV Meth.
-    override fun onUpdatePinLen(pin: String?) {
-        Utils.logsUtils("onUpdatePinLen: $pin")
-        App.instance.runOnUiThread {
-            if (pinText != null) {
-                pinText!!.text = pin
-            }
-        }
-    }
-
-    override fun getEnteredPin() = pinText?.text?.toString() ?: ""
-
-    override fun onEnterPinFinish(pinResult: Int) {
-        Utils.logsUtils("onEnterPinFinish: $pinResult")
-        this.pinResult = pinResult
-        App.instance.runOnUiThread {
-            if (mEnterPinPopWindow != null && mEnterPinPopWindow!!.isShowing) {
-                mEnterPinPopWindow?.dismiss()
-            }
-            if (pinResult == EnterPinResult.RET_SUCC || pinResult == EnterPinResult.RET_CANCEL || pinResult == EnterPinResult.RET_TIMEOUT || pinResult == EnterPinResult.RET_PIN_BY_PASS || pinResult == EnterPinResult.RET_OFFLINE_PIN_READY || pinResult == EnterPinResult.RET_NO_KEY) {
-                Utils.logsUtils("to do nothing", 0)
-            } else {
-                Utils.logsUtils(pinResult.toString())
-            }
-        }
-    }
-
-    override fun onStartEnterPin(prompt: String) {
-        Utils.logsUtils("onStartEnterPin: $prompt", 0)
-        App.instance.runOnUiThread { displayEnterPinDlg(prompt) }
-    }
-
-    override fun onTransFinish(transResult: TransResult?) {
-        currTransResultEnum = transResult!!.transResult
-        currentTxnCVMResult = transResult.cvmResult
-        currTransResultCode = transResult.resultCode
-
-        Utils.logsUtils("onTransFinish,retCode: $currTransResultCode, transResult: $currTransResultEnum, cvm result: ${transResult.cvmResult}")
-
-        getFirstGACTag()
-
-        if (transResult.resultCode == RetCode.EMV_OK) {
-            processCvm()
-        } else {
-            processTransResult(transResult)
-        }
-    }
-
-    override fun onCompleteTrans(transResult: TransResult?) {
-        currTransResultEnum = transResult!!.transResult
-        glStatus.GetInstance().TransactionResult = currTransResultEnum
-        currTransResultCode = transResult.resultCode
-        Utils.logsUtils("onCompleteTrans,retCode: ${transResult.resultCode}, transResult: $currTransResultEnum", 0)
-        if (transResult.resultCode == RetCode.EMV_OK) {
-            //La transaccion fue exitosa
-            proccessEmvComplete()
-        } else {
-            //Error en la transaccion
-            glStatus.GetInstance().TransactionResult = TransResultEnum.RESULT_EMV_FAIL
-            processFinishTransaction()
-        }
-    }
-
-    override fun onRemoveCard() {
-        binding.tvPrinter.text = getString(R.string.prompt_remove_card)
-    }
-
-    override fun onReadCardOK() {
-        //Realizar accion al momentor de detectar una tarjeta
-        Utils.logsUtils("onReadCardOk")
-    }
 
     override fun onMagDetectOK(
         pan: String?, expiryDate: String?, Track1: String?, Track2: String?
@@ -847,10 +797,12 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
                 //1.check trans result
                 checkTransResult()
             }
+
             CvmResultEnum.CVM_SIG -> {
                 //1.signature process 2.check trans result
                 signatureProcess()
             }
+
             CvmResultEnum.CVM_ONLINE_PIN -> {
                 when (currentTxnType) {
                     Utils.TXN_TYPE_PICC -> {
@@ -858,12 +810,14 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
                         // 2.check trans result
                         transProcessPresenter!!.startOnlinePin()
                     }
+
                     Utils.TXN_TYPE_ICC -> {
                         //check result
                         checkTransResult()
                     }
                 }
             }
+
             CvmResultEnum.CVM_ONLINE_PIN_SIG -> {
                 //AESC 17-02-2023 PICC no this cvm
                 if (currentTxnType == Utils.TXN_TYPE_ICC) {
@@ -871,14 +825,17 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
                     signatureProcess()
                 }
             }
+
             CvmResultEnum.CVM_OFFLINE_PIN -> {
                 //1.check trans result
                 checkTransResult()
             }
+
             CvmResultEnum.CVM_CONSUMER_DEVICE -> {
                 //1.restart detect(tap) card and transaction
                 startClssTransAgain()
             }
+
             else -> {
                 //Error
                 onDetectError(DetectCardResult.ERetCode.ERR_OTHER)
@@ -899,14 +856,17 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
                 // 1.online process 2.to result page
                 onlineProcess()
             }
+
             TransResultEnum.RESULT_OFFLINE_APPROVED -> {
                 //1.to result page
                 processFinishTransaction()
             }
+
             TransResultEnum.RESULT_OFFLINE_DENIED -> {
                 // 1.to result page
                 processFinishTransaction()
             }
+
             else -> {
                 Utils.logsUtils("unexpected result,$currTransResultEnum", 1)
                 processFinishTransaction()
@@ -927,9 +887,11 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
             EMVUtils.CardBrand.VISA -> {
                 shorted = glStatus.GetInstance().tranEMVTags.GetTLVasHexString(shortedTagsList)
             }
+
             EMVUtils.CardBrand.MASTERCARD -> {
                 shorted = glStatus.GetInstance().tranEMVTags.GetTLVasHexString(shortedTagsList)
             }
+
             EMVUtils.CardBrand.AMEX -> {}
             EMVUtils.CardBrand.JCB -> {}
             EMVUtils.CardBrand.DISCOVER -> {}
@@ -1021,7 +983,10 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
             "商户存根", Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_BOLD
         )
         page.addLine().addUnit(
-            "商户存根", Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE
+            "商户存根",
+            Utils.FONT_NORMAL,
+            IPage.EAlign.RIGHT,
+            IPage.ILine.IUnit.TEXT_STYLE_UNDERLINE
         )
         page.addLine().addUnit(
             "商户存根",
@@ -1040,7 +1005,11 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
             1f
         )
         page.addLine().addUnit(
-            "商户存根", Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
+            "商户存根",
+            Utils.FONT_NORMAL,
+            IPage.EAlign.RIGHT,
+            IPage.ILine.IUnit.TEXT_STYLE_NORMAL,
+            1f
         )
         page.addLine().addUnit("-----------------------------------------", Utils.FONT_NORMAL)
         page.addLine().addUnit("商户名称: " + "百富计算机技术", Utils.FONT_NORMAL)
@@ -1063,7 +1032,11 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
         page.addLine().addUnit(
             "授权码:", Utils.FONT_NORMAL, IPage.EAlign.LEFT, IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
         ).addUnit(
-            "参考号:", Utils.FONT_NORMAL, IPage.EAlign.RIGHT, IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
+            "参考号:",
+            Utils.FONT_NORMAL,
+            IPage.EAlign.RIGHT,
+            IPage.ILine.IUnit.TEXT_STYLE_NORMAL,
+            1f
         )
         page.addLine().addUnit(
             "987654", Utils.FONT_BIGEST, IPage.EAlign.LEFT, IPage.ILine.IUnit.TEXT_STYLE_NORMAL, 1f
@@ -1194,6 +1167,7 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
                     }
                 }
             }
+
             R.id.btnTestCustomPrinter -> {
                 progressbar(true)
                 GlobalScope.launch {
@@ -1217,6 +1191,7 @@ class CustomImplementationActivity : AppCompatActivity(), TransProcessContract.V
                     }
                 }
             }
+
             R.id.btnTestEmv -> {
                 binding.tvPrinter.text = getString(R.string.insert_tap_swipe_card)
                 progressbar(true)
