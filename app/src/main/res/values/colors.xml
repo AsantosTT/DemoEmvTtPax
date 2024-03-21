@@ -7,4 +7,22 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <color name="main_text">#595959</color>
+    <color name="main_button">#E6EEF4</color>
+    <color name="main_button_clicked">#B6CADA</color>
+    <color name="main_button_shadow">#D8E2EA</color>
+    <color name="main_highlight_button">#1976D2</color>
+    <color name="main_highlight_button_clicked">#1162B1</color>
+    <color name="main_highlight_button_shadow">#66224675</color>
+    <color name="commonui_primary">#3F51B5</color>
+    <color name="commonui_background">@android:color/background_light</color>
+    <color name="commonui_dark_background">#80000000</color>
+    <color name="commonui_accent">@android:color/holo_red_light</color>
+    <color name="commonui_primary_text_light">@android:color/primary_text_light</color>
+    <color name="commonui_divider">#BDBDBD</color>
+    <color name="commonui_primary_dark">#303F9F</color>
+    <color name="commonui_primary_text_dark">@android:color/primary_text_dark</color>
+    <color name="commonui_secondary_text_light">@android:color/secondary_text_light</color>
+
 </resources>

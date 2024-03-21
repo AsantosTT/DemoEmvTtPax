@@ -11,6 +11,9 @@ import com.techun.demoemvttpax.R
 import com.techun.demoemvttpax.databinding.ActivityMvvmSdkImplBinding
 import com.techun.demoemvttpax.ui.viewmodel.PaxViewModel
 import com.techun.demoemvttpax.utils.DataState
+import com.techun.demoemvttpax.utils.keyboard.currency.CurrencyConverter
+import com.techun.demoemvttpax.utils.keyboard.text.EditorActionListener
+import com.techun.demoemvttpax.utils.keyboard.text.EnterAmountTextWatcher
 import com.tecnologiatransaccional.ttpaxsdk.neptune.Sdk
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.glStatus
 import dagger.hilt.android.AndroidEntryPoint
@@ -24,8 +27,18 @@ class MvvmSdkImplActivity : AppCompatActivity(), View.OnClickListener {
         super.onCreate(savedInstanceState)
         binding = ActivityMvvmSdkImplBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        initViews()
         initObservers()
         initListener()
+    }
+
+    private fun initViews() {
+        binding.mainAmountEditText.requestFocus()
+        binding.mainAmountEditText.setText("")
+        binding.mainAmountEditText.isKeepKeyBoardOn = true
+
+        val amountWatcher = EnterAmountTextWatcher()
+        binding.mainAmountEditText.addTextChangedListener(amountWatcher)
     }
 
     private fun initObservers() {
@@ -74,6 +87,24 @@ class MvvmSdkImplActivity : AppCompatActivity(), View.OnClickListener {
 
     private fun initListener() {
         binding.button.setOnClickListener(this)
+
+        binding.mainAmountEditText.setOnEditorActionListener(object : EditorActionListener() {
+            override fun onKeyOk() {
+                // do trans
+                if (binding.mainAmountEditText.getText() != null && binding.mainAmountEditText.text!!.length !== 0) {
+                    val amount: Long =
+                        CurrencyConverter.parse(binding.mainAmountEditText.getText().toString())
+                    if (amount > 0) {
+                        println(amount)
+                    }
+                }
+            }
+
+            override fun onKeyCancel() {
+                // clear
+                binding.mainAmountEditText.setText("")
+            }
+        })
     }
 
 
