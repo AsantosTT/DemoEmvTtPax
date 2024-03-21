@@ -17,22 +17,21 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.net.wifi.WifiManager
-import android.os.*
-import android.provider.Settings.SettingNotFoundException
-import android.provider.Settings.System
+import android.os.BatteryManager
+import android.os.Build
+import android.os.Bundle
+import android.os.SystemClock
+import android.provider.Settings
 import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.View
 import android.view.Window
 import android.widget.SeekBar
-import android.widget.SeekBar.OnSeekBarChangeListener
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.pax.dal.IFingerprintReader
-import com.pax.dal.IFingerprintReader.FingerprintListener
-import com.pax.dal.entity.EPedType
 import com.pax.dal.entity.ETermInfoKey
 import com.pax.dal.entity.FingerprintResult
 import com.pax.dal.entity.PosMenu
@@ -41,25 +40,43 @@ import com.pax.gl.page.IPage
 import com.pax.gl.page.PaxGLPage
 import com.pax.neptunelite.api.NeptuneLiteUser
 import com.techun.demoemvttpax.databinding.ActivityMainBinding
-import com.tecnologiatransaccional.ttpaxsdk.App
 import com.tecnologiatransaccional.ttpaxsdk.TTPaxApi
 import com.tecnologiatransaccional.ttpaxsdk.base.BaseActivity
 import com.tecnologiatransaccional.ttpaxsdk.neptune.Sdk
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.TagsTable
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.entity.EOnlineResult
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.enums.TransResultEnum
-import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.*
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.AppDataUtils
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.ConvertHelper
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.DetectCardResult
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.Device
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.EMVUtils
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.EReaderType
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.MiscUtils
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.TrackUtils
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.glStatus
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.interfaces.IConvert
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.printer.exception.PrinterException
 import com.tecnologiatransaccional.ttpaxsdk.utils.Utils
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.*
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.FileReader
 import java.io.IOException
 import java.net.NetworkInterface
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.ArrayList
+import java.util.Calendar
+import java.util.Collections
+import java.util.Date
+import java.util.EnumMap
+import java.util.Locale
+import java.util.Timer
+import java.util.TimerTask
 import kotlin.math.round
 
 
@@ -141,7 +158,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         //Init PaxGLPage Libary
         iPaxGLPage = PaxGLPage.getInstance(this)
 
-        val ped = Sdk.isPaxDevice()
+        val ped = Sdk.isPaxDevice
         logs("Is PAX Device: $ped")
         logs("Is PAX Device: ${Build.DISPLAY}")
         logs("Is PAX Device: ${Build.DEVICE}")
@@ -150,7 +167,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         logs("Is PAX Device: ${Build.MANUFACTURER}")
 
         //Init SDK
-        sdkTTPax.init({
+        sdkTTPax.initPaxSdk({
             //Exitoso
             Utils.logsUtils("PAX is working correctly")
             try {
@@ -200,8 +217,8 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         binding.layoutUi.sbBrightness.max = 255
         binding.layoutUi.sbBrightness.keyProgressIncrement = 1
         try {
-            brightness = System.getInt(cResolver, System.SCREEN_BRIGHTNESS)
-        } catch (e: SettingNotFoundException) {
+            brightness = Settings.System.getInt(cResolver, Settings.System.SCREEN_BRIGHTNESS)
+        } catch (e: Settings.SettingNotFoundException) {
             logs("Error brightness - Cannot access system brightness")
         }
 
@@ -209,7 +226,8 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         val perc: Float = brightness / 255f * 100
         binding.layoutUi.tvBrightnessPorcent.text = perc.toInt().toString() + " %"
 
-        binding.layoutUi.sbBrightness.setOnSeekBarChangeListener(object : OnSeekBarChangeListener {
+        binding.layoutUi.sbBrightness.setOnSeekBarChangeListener(object :
+            SeekBar.OnSeekBarChangeListener {
             @RequiresApi(Build.VERSION_CODES.M)
             override fun onStopTrackingTouch(seekBar: SeekBar) {
                 setScreenBrightness((brightness / 255f * 100).toInt())
@@ -282,7 +300,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
     private fun updateSettings(posMenu: PosMenu, status: Boolean) {
         val systemConfig = sdkTTPax.getDal(applicationContext)!!.sys
         val configuraciones: MutableMap<PosMenu, Boolean> =
-            EnumMap(com.pax.dal.entity.PosMenu::class.java)
+            EnumMap(PosMenu::class.java)
         configuraciones[posMenu] = status
         systemConfig.disablePosMenu(configuraciones)
     }
@@ -290,7 +308,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
     fun configuracionesPOS() {
         try {
             val configuraciones: MutableMap<PosMenu, Boolean> =
-                EnumMap(com.pax.dal.entity.PosMenu::class.java)
+                EnumMap(PosMenu::class.java)
             configuraciones[PosMenu.BT] = true
             configuraciones[PosMenu.QS_BT] = true
             configuraciones[PosMenu.WIFI] = true
@@ -695,7 +713,6 @@ class MainActivity : BaseActivity(), View.OnClickListener {
     private fun logs(msg: String?) {
         Log.d("logs-demo-app", "$msg")
         binding.layoutUi.tvLogs.append("$msg \n")
-//        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
     }
 
     @OptIn(DelicateCoroutinesApi::class)
@@ -784,7 +801,8 @@ class MainActivity : BaseActivity(), View.OnClickListener {
 
 
                 try {
-                    reader.extractImage(IMAGE_TYPE_RAW, 10, object : FingerprintListener {
+                    reader.extractImage(IMAGE_TYPE_RAW, 10, object :
+                        IFingerprintReader.FingerprintListener {
                         override fun onError(i: Int) {
                             logs("Error: $i")
                         }
@@ -813,8 +831,9 @@ class MainActivity : BaseActivity(), View.OnClickListener {
 
             R.id.btnFingerPrintExtracFeature -> {
                 try {
-                    reader.extractFeature(FEATURE_ANSI_INCITS_378_2004,
-                        object : FingerprintListener {
+                    reader.extractFeature(
+                        FEATURE_ANSI_INCITS_378_2004,
+                        object : IFingerprintReader.FingerprintListener {
                             override fun onError(i: Int) {}
                             override fun onSuccess(fingerprintResult: FingerprintResult) {
                                 val feature = fingerprintResult.featureCode
@@ -944,7 +963,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
 
                     var locationByNetwork: Location
                     var locationByGps: Location
-                    locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+                    locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
                     val hasGps = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
                     val hasNetwork =
                         locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
@@ -1127,7 +1146,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
     }
 
     private fun obtenerPorcentajeRAMUtilizada(context: Context): String {
-        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val activityManager = context.getSystemService(ACTIVITY_SERVICE) as ActivityManager
         val memoryInfo = ActivityManager.MemoryInfo()
         activityManager.getMemoryInfo(memoryInfo)
 
@@ -1189,7 +1208,8 @@ class MainActivity : BaseActivity(), View.OnClickListener {
     }
 
 
-    private var listener: FingerprintListener = object : FingerprintListener {
+    private var listener: IFingerprintReader.FingerprintListener = object :
+        IFingerprintReader.FingerprintListener {
         override fun onError(i: Int) {
             runOnUiThread { logs("Err$i") }
         }
@@ -1396,4 +1416,3 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         return iPaxGLPage.pageToBitmap(page, widthFinal)
     }
 }
-

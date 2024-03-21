@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <declare-styleable name="commonuiProgressWheel">
+        <attr name="matProg_progressIndeterminate" format="boolean" tools:ignore="ResourceName" />
+        <attr name="matProg_barColor" format="color" tools:ignore="ResourceName" />
+        <attr name="matProg_rimColor" format="color" tools:ignore="ResourceName"/>
+        <attr name="matProg_rimWidth" format="dimension" tools:ignore="ResourceName"/>
+        <attr name="matProg_spinSpeed" format="float" tools:ignore="ResourceName"/>
+        <attr name="matProg_barSpinCycleTime" format="integer" tools:ignore="ResourceName"/>
+        <attr name="matProg_circleRadius" format="dimension" tools:ignore="ResourceName"/>
+        <attr name="matProg_fillRadius" format="boolean" tools:ignore="ResourceName"/>
+        <attr name="matProg_barWidth" format="dimension" tools:ignore="ResourceName"/>
+        <attr name="matProg_linearProgress" format="boolean" tools:ignore="ResourceName"/>
+    </declare-styleable>
+    <declare-styleable name="CustomKeyboardEditText" tools:ignore="ResourceName">
+        <attr name="xml" format="reference"/>
+        <attr name="random_keys" format="reference|boolean"/>
+        <attr name="autoSize" format="boolean"/>
+        <attr name="keepKeyboardOn" format="boolean"/>
+        <attr name="timeout_sec" format="integer"/>
+    </declare-styleable>
+    <declare-styleable name="CustomKeyboardView" tools:ignore="ResourceName">
+        <attr name="keyTextColor" format="color" />
+        <attr name="opKeyTextColor" format="color" />
+    </declare-styleable>
+    <declare-styleable name="commonuiRotate3dAnimation">
+        <attr name="rollType" format="enum" tools:ignore="ResourceName">
+            <enum name="x" value="0" />
+            <enum name="y" value="1" />
+            <enum name="z" value="2" />
+        </attr>
+        <attr name="fromDeg" format="float" tools:ignore="ResourceName"/>
+        <attr name="toDeg" format="float" tools:ignore="ResourceName"/>
+        <attr name="pivotX" format="fraction" tools:ignore="ResourceName"/>
+        <attr name="pivotY" format="fraction" tools:ignore="ResourceName"/>
+    </declare-styleable>
+    <declare-styleable name="ClssLight" tools:ignore="ResourceName">
+        <attr name="offSrc" format="reference" />
+        <attr name="onSrc" format="reference" />
+    </declare-styleable>
+</resources>

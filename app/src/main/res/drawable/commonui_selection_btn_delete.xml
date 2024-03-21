@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:state_pressed="false" android:background="@color/commonui_background" android:drawable="@drawable/commonui_delete_bg" />
+
+    <item android:state_pressed="true" android:background="@color/commonui_divider" android:drawable="@drawable/commonui_delete_click_bg" />
+
+</selector>

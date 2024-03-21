@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ ===========================================================================================
+  ~ = COPYRIGHT
+  ~          PAX Computer Technology(Shenzhen) CO., LTD PROPRIETARY INFORMATION
+  ~   This software is supplied under the terms of a license agreement or nondisclosure
+  ~   agreement with PAX Computer Technology(Shenzhen) CO., LTD and may not be copied or
+  ~   disclosed except in accordance with the terms in that agreement.
+  ~     Copyright (C) 2019-? PAX Computer Technology(Shenzhen) CO., LTD All rights reserved.
+  ~ Description: // Detail description about the function of this module,
+  ~             // interfaces with the other modules, and dependencies.
+  ~ Revision History:
+  ~ Date	                Author	               Action
+  ~ 20210516 	        xieYb                  Create
+  ~ ===========================================================================================
+  ~
+  -->
+
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:state_enabled="true" android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/commonui_primary_dark" />
+        </shape>
+    </item>
+    <item android:state_enabled="true" android:state_pressed="false">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/commonui_primary" />
+        </shape>
+    </item>
+
+    <item android:state_enabled="false" android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/commonui_divider" />
+        </shape>
+    </item>
+    <item android:state_enabled="false" android:state_pressed="false">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/commonui_divider" />
+        </shape>
+    </item>
+    <item android:drawable="@color/commonui_primary" />
+</selector>

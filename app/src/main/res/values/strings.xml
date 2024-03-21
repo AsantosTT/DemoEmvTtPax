@@ -69,4 +69,34 @@ PREFERIRNOS|---- COPIA ESTABLECIMIENTO ----|</string>
     <string name="shutdown">Shutdown</string>
     <string name="mobile_data">Mobile Data</string>
     <string name="airplane_mode">Airplane Mode</string>
+
+
+    <string name="commonui_num_0">0</string>
+    <string name="commonui_num_1">1</string>
+    <string name="commonui_num_2">2</string>
+    <string name="commonui_num_3">3</string>
+    <string name="commonui_num_4">4</string>
+    <string name="commonui_num_5">5</string>
+    <string name="commonui_num_6">6</string>
+    <string name="commonui_num_7">7</string>
+    <string name="commonui_num_8">8</string>
+    <string name="commonui_num_9">9</string>
+    <string name="commonui_num_00">00</string>
+    <string name="commonui_num_000">000</string>
+
+    <string name="num_1" translatable="false">1</string>
+    <string name="num_2" translatable="false">2</string>
+    <string name="num_3" translatable="false">3</string>
+    <string name="num_4" translatable="false">4</string>
+    <string name="num_5" translatable="false">5</string>
+    <string name="num_6" translatable="false">6</string>
+    <string name="num_7" translatable="false">7</string>
+    <string name="num_8" translatable="false">8</string>
+    <string name="num_9" translatable="false">9</string>
+    <string name="num_0" translatable="false">0</string>
+    <string name="num_00" translatable="false">00</string>
+    <string name="num_000" translatable="false">000</string>
+    <string name="key_clear" translatable="false">C</string>
+    <string name="key_delete" translatable="false">⌫</string>
+    <string name="key_ok" translatable="false">OK</string>
 </resources>
