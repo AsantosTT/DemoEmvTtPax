@@ -99,10 +99,10 @@ class CustomImplementationActivity : AppCompatActivity(), DetectCardContract.Vie
         iPaxGLPage = PaxGLPage.getInstance(this)
 
         //Init SDK
-        sdkTTPax.initPaxSdk({
+        sdkTTPax.initPaxSdk(onSuccess = {
             //Exitoso
             Utils.logsUtils("PAX is working correctly")
-        }, {
+        }, onFeature = {
             println("Error: $it")
         })
 

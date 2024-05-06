@@ -69,7 +69,6 @@ import java.io.FileReader
 import java.io.IOException
 import java.net.NetworkInterface
 import java.text.SimpleDateFormat
-import java.util.ArrayList
 import java.util.Calendar
 import java.util.Collections
 import java.util.Date
@@ -167,7 +166,9 @@ class MainActivity : BaseActivity(), View.OnClickListener {
         logs("Is PAX Device: ${Build.MANUFACTURER}")
 
         //Init SDK
-        sdkTTPax.initPaxSdk({
+        sdkTTPax.initPaxSdk(
+
+            onSuccess = {
             //Exitoso
             Utils.logsUtils("PAX is working correctly")
             try {
@@ -192,7 +193,9 @@ class MainActivity : BaseActivity(), View.OnClickListener {
             } catch (e: java.lang.Exception) {
                 Utils.logsUtils(e.printStackTrace().toString())
             }
-        }, {
+            },
+
+            onFeature = {
             println("Error: $it")
         })
 

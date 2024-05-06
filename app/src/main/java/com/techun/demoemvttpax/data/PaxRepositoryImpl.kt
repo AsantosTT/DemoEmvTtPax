@@ -4,6 +4,11 @@ import android.graphics.Bitmap
 import com.techun.demoemvttpax.domain.repository.PaxRepository
 import com.techun.demoemvttpax.utils.DataState
 import com.tecnologiatransaccional.ttpaxsdk.TTPaxApi
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.xmlparam.entity.clss.PayPassAid
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.xmlparam.entity.clss.PayWaveParam
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.xmlparam.entity.common.CapkParam
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.xmlparam.entity.common.Config
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.xmlparam.entity.contact.EmvAid
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.printer.exception.PrinterException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -15,14 +20,27 @@ import javax.inject.Inject
 class PaxRepositoryImpl @Inject constructor(
     private val sdk: TTPaxApi
 ) : PaxRepository {
-    override suspend fun initSdk(): Flow<DataState<Boolean>> {
+    override suspend fun initSdk(
+        capkParam: CapkParam,
+        emvAidList: ArrayList<EmvAid>,
+        emvConfig: Config,
+        paywaveParams: PayWaveParam,
+        paypassParam: ArrayList<PayPassAid>
+    ): Flow<DataState<Boolean>> {
         return flow {
             emit(DataState.Loading)
             try {
                 var isSuccessful = false
-                sdk.initPaxSdk({
+                sdk.initPaxSdk(
+                    capkParam = capkParam,
+                    emvAidList = emvAidList,
+                    configParam = emvConfig,
+                    paramPayWave = paywaveParams,
+                    paramPayPassAids = paypassParam,
+                    onSuccess = {
                     isSuccessful = true
-                }, {
+                    },
+                    onFeature = {
                     isSuccessful = false
                 })
                 emit(DataState.Success(isSuccessful))

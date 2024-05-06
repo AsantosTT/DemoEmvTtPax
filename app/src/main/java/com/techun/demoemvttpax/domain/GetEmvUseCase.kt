@@ -2,16 +2,17 @@ package com.techun.demoemvttpax.domain
 
 import android.content.Context
 import com.pax.dal.entity.EReaderType
+import com.pax.jemv.device.DeviceManager
 import com.techun.demoemvttpax.R
+import com.techun.demoemvttpax.domain.models.DataCard
 import com.techun.demoemvttpax.domain.repository.DetectCardContractRepository
 import com.techun.demoemvttpax.utils.DataState
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.contact.EmvProcess
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.contactless.ClssProcess
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.entity.TransResult
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.CardInfoUtils
-import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.DetectCardResult
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.DeviceImplNeptune
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.glStatus
-import com.tecnologiatransaccional.ttpaxsdk.utils.Utils
-import com.tecnologiatransaccional.ttpaxsdk.utils.Utils.TXN_TYPE_ICC
-import com.tecnologiatransaccional.ttpaxsdk.utils.Utils.TXN_TYPE_MAG
-import com.tecnologiatransaccional.ttpaxsdk.utils.Utils.TXN_TYPE_PICC
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -23,7 +24,8 @@ class GetEmvUseCase @Inject constructor(
     @ApplicationContext private val context: Context,
     private val detectCardContractRepository: DetectCardContractRepository
 ) {
-    suspend operator fun invoke(readerType: EReaderType): Flow<DataState<DetectCardResult>> = flow {
+    suspend operator fun invoke(readerType: EReaderType): Flow<DataState<DataCard>> = flow {
+        emit(DataState.Loading)
         when (val dataState = detectCardContractRepository.startDetectCard(readerType)) {
             is DataState.Success -> {
                 val detectResult = dataState.data
@@ -33,15 +35,24 @@ class GetEmvUseCase @Inject constructor(
                     EReaderType.PICC -> {
                         glStatus.GetInstance().currentReaderType = EReaderType.PICC.eReaderType.toInt()
 
+                        val deviceImplNeptune: DeviceImplNeptune = DeviceImplNeptune.getInstance()
+                        DeviceManager.getInstance().setIDevice(deviceImplNeptune)
 
-                        emit(DataState.Success(detectResult))
+                        val transResult: TransResult = ClssProcess.getInstance().startTransProcess()
+
+                        emit(DataState.Success(DataCard(dataPiccIcc = transResult)))
                         emit(DataState.Finished)
                     }
 
                     EReaderType.ICC -> {
                         glStatus.GetInstance().currentReaderType = EReaderType.ICC.eReaderType.toInt()
 
-                        emit(DataState.Success(detectResult))
+                        val deviceImplNeptune = DeviceImplNeptune.getInstance()
+                        DeviceManager.getInstance().setIDevice(deviceImplNeptune)
+
+                        val transResult: TransResult = EmvProcess.getInstance().startTransProcess()
+
+                        emit(DataState.Success(DataCard(dataPiccIcc = transResult)))
                         emit(DataState.Finished)
                     }
 
@@ -56,12 +67,12 @@ class GetEmvUseCase @Inject constructor(
                         glStatus.GetInstance().Track2 = track2
                         glStatus.GetInstance().currentReaderType = EReaderType.MAG.eReaderType.toInt()
 
-                        emit(DataState.Success(detectResult))
+                        emit(DataState.Success(DataCard(dataMag = detectResult)))
                         emit(DataState.Finished)
                     }
 
                     else -> {
-                        emit(DataState.Success(detectResult))
+                        emit(DataState.Error(Exception("Error in type")))
                         emit(DataState.Finished)
                     }
                 }
