@@ -1,4 +1,4 @@
-package com.techun.demoemvttpax
+package com.techun.demoemvttpax.ui.activities
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -39,7 +39,12 @@ import com.pax.dal.exceptions.FingerprintDevException
 import com.pax.gl.page.IPage
 import com.pax.gl.page.PaxGLPage
 import com.pax.neptunelite.api.NeptuneLiteUser
+import com.techun.demoemvttpax.R
 import com.techun.demoemvttpax.databinding.ActivityMainBinding
+import com.techun.demoemvttpax.utils.FEATURE_ANSI_INCITS_378_2004
+import com.techun.demoemvttpax.utils.IMAGE_TYPE_RAW
+import com.techun.demoemvttpax.utils.PERMISSION_REQUEST_CODE
+import com.techun.demoemvttpax.utils.toHexString
 import com.tecnologiatransaccional.ttpaxsdk.TTPaxApi
 import com.tecnologiatransaccional.ttpaxsdk.base.BaseActivity
 import com.tecnologiatransaccional.ttpaxsdk.neptune.Sdk
@@ -77,21 +82,6 @@ import java.util.Locale
 import java.util.Timer
 import java.util.TimerTask
 import kotlin.math.round
-
-
-private const val FEATURE_ANSI_INCITS_378_2004 = 1
-private const val FEATURE_ISO_IEC_19794_2_2005 = 2
-private const val FEATURE_ARATEK_BIONE = 3
-private const val FEATURE_RESERVED_1 = 4
-private const val FEATURE_RESERVED_2 = 5
-
-private const val IMAGE_TYPE_RAW = 1
-private const val IMAGE_TYPE_BMP = 2
-private const val IMAGE_TYPEWSQ = 3
-private const val IMAGE_ANSI_INCITS_381_2004 = 4
-private const val IMAGE_ISO_IEC_19794_4_2005 = 5
-
-private const val PERMISSION_REQUEST_CODE = 100
 
 @AndroidEntryPoint
 class MainActivity : BaseActivity(), View.OnClickListener {
@@ -170,7 +160,7 @@ class MainActivity : BaseActivity(), View.OnClickListener {
 
             onSuccess = {
             //Exitoso
-            Utils.logsUtils("PAX is working correctly")
+                Utils.logsUtils("PAX is working correctly")
             try {
                 reader = NeptuneLiteUser.getInstance().getDal(this).fingerprintReader
                 Utils.logsUtils("reader is working correctly")

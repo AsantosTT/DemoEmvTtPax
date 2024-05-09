@@ -7,5 +7,7 @@ sealed class DataState<out R> {
     data class Error(val exception: Exception) : DataState<Nothing>()
     data class ErrorPrinter(val exception: PrinterException) : DataState<Nothing>()
     object Loading : DataState<Nothing>()
+    object RemoveCard : DataState<Nothing>()
+    object ReadCardOK : DataState<Nothing>()
     object Finished : DataState<Nothing>()
 }

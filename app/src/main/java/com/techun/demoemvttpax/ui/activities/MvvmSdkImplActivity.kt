@@ -1,14 +1,15 @@
 package com.techun.demoemvttpax.ui.activities
 
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.view.View
 import android.view.View.GONE
 import android.view.View.VISIBLE
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import com.pax.dal.entity.EReaderType
+import com.pax.jemv.clcommon.RetCode
 import com.techun.demoemvttpax.R
 import com.techun.demoemvttpax.databinding.ActivityMvvmSdkImplBinding
 import com.techun.demoemvttpax.ui.viewmodel.PaxViewModel
@@ -16,8 +17,10 @@ import com.techun.demoemvttpax.utils.DataState
 import com.techun.demoemvttpax.utils.keyboard.currency.CurrencyConverter
 import com.techun.demoemvttpax.utils.keyboard.text.EditorActionListener
 import com.techun.demoemvttpax.utils.keyboard.text.EnterAmountTextWatcher
+import com.techun.demoemvttpax.utils.toast
 import com.tecnologiatransaccional.ttpaxsdk.neptune.Sdk
 import com.tecnologiatransaccional.ttpaxsdk.neptune.Sdk.Companion.instance
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.contact.EmvProcess
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.ConvertHelper
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.glStatus
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.interfaces.IConvert
@@ -34,7 +37,7 @@ import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.xmlparam.entity.c
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class MvvmSdkImplActivity : AppCompatActivity(), View.OnClickListener {
+class MvvmSdkImplActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMvvmSdkImplBinding
     private val viewModel: PaxViewModel by viewModels()
 
@@ -45,80 +48,10 @@ class MvvmSdkImplActivity : AppCompatActivity(), View.OnClickListener {
         initViews()
         initObservers()
         initListener()
+        configSdk()
     }
 
-    private fun initViews() {
-        binding.mainAmountEditText.requestFocus()
-        binding.mainAmountEditText.setText("")
-        binding.mainAmountEditText.isKeepKeyBoardOn = true
-
-        val amountWatcher = EnterAmountTextWatcher()
-        binding.mainAmountEditText.addTextChangedListener(amountWatcher)
-    }
-
-    private fun initObservers() {
-        viewModel.sdkState.observe(this) { dataState ->
-            when (dataState) {
-                is DataState.Success -> {
-                    val ped = Sdk.isPaxDevice
-                    logs("PAX PED: $ped")
-                    logs("PAX DISPLAY: ${Build.DISPLAY}")
-                    logs("PAX DEVICE: ${Build.DEVICE}")
-                    logs("PAX MODEL: ${Build.MODEL}")
-                    logs("PAX PRODUCT: ${Build.PRODUCT}")
-                    logs("PAX MANUFACTURER: ${Build.MANUFACTURER}")
-
-                    //Exitoso
-                    println("PAX is working correctly")
-
-                    val capk = instance!!.paramManager!!.capkParam
-                    val emvAids = instance!!.paramManager!!.emvAidList
-                    val configs = instance!!.paramManager!!.configParam
-                    val paywaveParams = instance!!.paramManager!!.payWaveParam
-                    val paypassParams = instance!!.paramManager!!.payPassAidList
-
-                    println("CONFIGS")
-
-                    println("Init Capk: $capk")
-                    println("Init EmvAids: $emvAids")
-                    println("Init Configs: $configs")
-                    println("Init Paywave Aids: ${paywaveParams.payWaveAidArrayList}, Init Paywave ProgramId: ${paywaveParams.waveProgramIdArrayList}")
-                    println("Init Paypass Params: $paypassParams")
-                }
-
-                is DataState.Error -> {
-                    logs(dataState.exception.message)
-                }
-
-                else -> Unit
-            }
-        }
-
-        viewModel.getEmv.observe(this) { dataState ->
-            when (dataState) {
-                is DataState.Success -> {
-                    val cardDetails = dataState.data.dataPiccIcc
-                    logs("\nonMagDetectOK: ${getString(R.string.prompt_swipe_card)}")
-                    logs("Get Track2: ${glStatus.GetInstance().Track2}")
-                    logs("Get PAN: ${glStatus.GetInstance().PAN}")
-                    logs("Get ExpirationDate: ${glStatus.GetInstance().ExpirationDate}")
-                    logs("Get currentReaderType: ${glStatus.GetInstance().currentReaderType}")
-                }
-
-                is DataState.Error -> {
-                    logs(dataState.exception.message)
-                }
-
-                is DataState.Loading -> binding.fragmentProgressBar.visibility = VISIBLE
-
-                is DataState.Finished -> binding.fragmentProgressBar.visibility = GONE
-
-                else -> Unit
-            }
-
-        }
-
-
+    private fun configSdk() {
         val convert = ConvertHelper.getConvert()
 
         //CAPK
@@ -1025,14 +958,19 @@ class MvvmSdkImplActivity : AppCompatActivity(), View.OnClickListener {
 
         println("Paypass Param: $paypassParam")
 
-
-
         viewModel.sdkInit(capkParam, emvAidList, emvConfig, paywaveParams, paypassParam)
     }
 
-    private fun initListener() {
-        binding.button.setOnClickListener(this)
+    private fun initViews() {
+        binding.mainAmountEditText.requestFocus()
+        binding.mainAmountEditText.setText("")
+        binding.mainAmountEditText.isKeepKeyBoardOn = true
 
+        val amountWatcher = EnterAmountTextWatcher()
+        binding.mainAmountEditText.addTextChangedListener(amountWatcher)
+    }
+
+    private fun initListener() {
         binding.mainAmountEditText.setOnEditorActionListener(object : EditorActionListener() {
             override fun onKeyOk() {
                 // do trans
@@ -1041,7 +979,7 @@ class MvvmSdkImplActivity : AppCompatActivity(), View.OnClickListener {
                         CurrencyConverter.parse(binding.mainAmountEditText.getText().toString())
                     if (amount > 0) {
                         println(amount)
-                        viewModel.startEmvTrans(EReaderType.MAG)
+                        viewModel.loadEmvTransParam(transAmt = amount)
                     }
                 }
             }
@@ -1053,17 +991,149 @@ class MvvmSdkImplActivity : AppCompatActivity(), View.OnClickListener {
         })
     }
 
+    private fun initObservers() {
+        viewModel.sdkState.observe(this) { dataState ->
+            when (dataState) {
+                is DataState.Success -> {
+                    val ped = Sdk.isPaxDevice
+                    logs("PAX PED: $ped")
+                    logs("PAX DISPLAY: ${Build.DISPLAY}")
+                    logs("PAX DEVICE: ${Build.DEVICE}")
+                    logs("PAX MODEL: ${Build.MODEL}")
+                    logs("PAX PRODUCT: ${Build.PRODUCT}")
+                    logs("PAX MANUFACTURER: ${Build.MANUFACTURER}")
+
+                    //Exitoso
+                    println("PAX is working correctly")
+
+                    val capk = instance!!.paramManager!!.capkParam
+                    val emvAids = instance!!.paramManager!!.emvAidList
+                    val configs = instance!!.paramManager!!.configParam
+                    val paywaveParams = instance!!.paramManager!!.payWaveParam
+                    val paypassParams = instance!!.paramManager!!.payPassAidList
+
+                    println("CONFIGS")
+
+                    println("Init Capk: $capk")
+                    println("Init EmvAids: $emvAids")
+                    println("Init Configs: $configs")
+                    println("Init Paywave Aids: ${paywaveParams.payWaveAidArrayList}, Init Paywave ProgramId: ${paywaveParams.waveProgramIdArrayList}")
+                    println("Init Paypass Params: $paypassParams")
+                }
+
+                is DataState.Error -> {
+                    logs(dataState.exception.message)
+                }
+
+                else -> Unit
+            }
+        }
+
+        viewModel.emvTransParam.observe(this) { dataState ->
+            when (dataState) {
+                is DataState.Success -> {
+                    val evmConfigs = dataState.data
+                    viewModel.startEmvTrans(EReaderType.MAG_ICC_PICC, evmConfigs)
+                }
+
+                is DataState.Error -> {
+                    println("Error: ${dataState.exception}")
+                }
+
+                else -> Unit
+            }
+        }
+
+        viewModel.getEmv.observe(this) { dataState ->
+            when (dataState) {
+                is DataState.Success -> {
+                    val emvData = dataState.data
+                    when (emvData.readerType) {
+                        EReaderType.MAG -> {
+                            logs("Get Track2: ${glStatus.GetInstance().Track2}")
+                            logs("Get PAN: ${glStatus.GetInstance().PAN}")
+                            logs("Get ExpirationDate: ${glStatus.GetInstance().ExpirationDate}")
+                            logs("Get currentReaderType: ${glStatus.GetInstance().currentReaderType}")
+                        }
+
+                        EReaderType.ICC -> {
+                            val cardDetails = dataState.data.dataPiccIcc
+                            logs("onTransFinish,retCode: ${cardDetails?.resultCode}, transResult: ${cardDetails?.transResult}, cvm result: ${cardDetails?.cvmResult}")
+
+                            if (cardDetails?.resultCode == RetCode.EMV_OK) {
+                                logs("OK")
+                            } else {
+                                logs("processTransResult")
+                            }
+                        }
+
+                        EReaderType.PICC -> {
+                            val cardDetails = dataState.data.dataPiccIcc
+                            logs("onTransFinish,retCode: ${cardDetails?.resultCode}, transResult: ${cardDetails?.transResult}, cvm result: ${cardDetails?.cvmResult}")
+
+                            if (cardDetails?.resultCode == RetCode.EMV_OK) {
+                                logs("OK")
+                            } else {
+                                logs("processTransResult")
+                            }
+                        }
+
+                        else -> Unit
+                    }
+                }
+
+                is DataState.RemoveCard -> {
+                    toast(getString(R.string.prompt_remove_card))
+                }
+
+                is DataState.ReadCardOK -> {
+                    //DO Something
+                }
+
+                is DataState.Error -> {
+                    logs(dataState.exception.message)
+                }
+
+                is DataState.Loading -> binding.fragmentProgressBar.visibility = VISIBLE
+
+                is DataState.Finished -> binding.fragmentProgressBar.visibility = GONE
+
+                else -> Unit
+            }
+
+        }
+
+    }
+
+
+    private fun getFirstGACTag() {
+        var data = com.pax.jemv.clcommon.ByteArray()
+        var ret: Int = EmvProcess.getInstance().getTlv(0x95, data)
+        if (ret == RetCode.EMV_OK) {
+            val dataArr = ByteArray(data.length)
+            System.arraycopy(data.data, 0, dataArr, 0, data.length)
+            val firstGacTVR = ConvertHelper.getConvert().bcdToStr(dataArr)
+        }
+
+        data = com.pax.jemv.clcommon.ByteArray()
+        ret = EmvProcess.getInstance().getTlv(0x9B, data)
+        if (ret == RetCode.EMV_OK) {
+            val dataArr = ByteArray(data.length)
+            System.arraycopy(data.data, 0, dataArr, 0, data.length)
+            val firstGacTSI = ConvertHelper.getConvert().bcdToStr(dataArr)
+        }
+
+        data = com.pax.jemv.clcommon.ByteArray()
+        ret = EmvProcess.getInstance().getTlv(0x9F27, data)
+        if (ret == RetCode.EMV_OK) {
+            val dataArr = ByteArray(data.length)
+            System.arraycopy(data.data, 0, dataArr, 0, data.length)
+            val firstGacCID = ConvertHelper.getConvert().bcdToStr(dataArr)
+        }
+    }
 
     private fun logs(msg: String?) {
         Log.d("logs-demo-app", "$msg")
-        binding.tvLogs.append("$msg \n")
     }
 
-    override fun onClick(v: View?) {
-        when (v!!.id) {
-            R.id.button -> {
-                viewModel.startEmvTrans(EReaderType.MAG)
-            }
-        }
-    }
 }

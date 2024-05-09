@@ -52,7 +52,7 @@
             android:name=".ui.activities.CustomImplementationActivity"
             android:exported="true" />
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.activities.MainActivity"
             android:exported="true" />
     </application>
 
