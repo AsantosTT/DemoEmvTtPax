@@ -1,4 +1,4 @@
-package com.techun.demoemvttpax.domain
+package com.techun.demoemvttpax.domain.usecases
 
 import com.techun.demoemvttpax.domain.repository.PaxRepository
 import com.techun.demoemvttpax.utils.DataState

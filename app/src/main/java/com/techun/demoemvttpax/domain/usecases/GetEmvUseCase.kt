@@ -1,4 +1,4 @@
-package com.techun.demoemvttpax.domain
+package com.techun.demoemvttpax.domain.usecases
 
 import android.content.Context
 import android.os.SystemClock

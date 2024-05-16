@@ -1,6 +1,5 @@
 package com.techun.demoemvttpax.ui.activities
 
-import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -34,6 +33,7 @@ import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.xmlparam.entity.c
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.xmlparam.entity.common.CapkRevoke
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.xmlparam.entity.common.Config
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.xmlparam.entity.contact.EmvAid
+import com.tecnologiatransaccional.ttpaxsdk.utils.Utils.TXN_TYPE_PICC
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -610,11 +610,11 @@ class MvvmSdkImplActivity : AppCompatActivity() {
 
         //COMMON CONFIG
         val emvConfig = Config(
-            merchantId = "TTPAXTestMerchant",
+            merchantId = "TecnologiaTransaccionalTestMerchant",
             merchantCategoryCode = convert.strToBcd(
                 "5399", IConvert.EPaddingPosition.PADDING_RIGHT
             ),
-            merchantNameAndLocation = "PAX-APP,GuatemalaCity",
+            merchantNameAndLocation = "TT-APP,Guatemala City",
             terminalCountryCode = convert.strToBcd("0320", IConvert.EPaddingPosition.PADDING_RIGHT),
             terminalCurrencySymbol = "Q",
             transReferenceCurrencyCode = convert.strToBcd(
@@ -939,9 +939,10 @@ class MvvmSdkImplActivity : AppCompatActivity() {
                 cardDataInput = convert.strToBcd("E0", IConvert.EPaddingPosition.PADDING_LEFT)[0],
                 magneticCvm = convert.strToBcd("60", IConvert.EPaddingPosition.PADDING_LEFT)[0],
                 mageticNoCvm = convert.strToBcd("00", IConvert.EPaddingPosition.PADDING_LEFT)[0],
+
                 cvmCapabilityCvmRequired = convert.strToBcd(
                     "48", IConvert.EPaddingPosition.PADDING_LEFT
-                )[0],
+                )[0],//48
                 cvmCapabilityNoCvmRequired = convert.strToBcd(
                     "08", IConvert.EPaddingPosition.PADDING_LEFT
                 )[0],
@@ -974,7 +975,7 @@ class MvvmSdkImplActivity : AppCompatActivity() {
         binding.mainAmountEditText.setOnEditorActionListener(object : EditorActionListener() {
             override fun onKeyOk() {
                 // do trans
-                if (binding.mainAmountEditText.getText() != null && binding.mainAmountEditText.text!!.length !== 0) {
+                if (binding.mainAmountEditText.getText() != null && binding.mainAmountEditText.text!!.isNotEmpty()) {
                     val amount: Long =
                         CurrencyConverter.parse(binding.mainAmountEditText.getText().toString())
                     if (amount > 0) {
@@ -1062,6 +1063,8 @@ class MvvmSdkImplActivity : AppCompatActivity() {
 
                             if (cardDetails?.resultCode == RetCode.EMV_OK) {
                                 logs("OK")
+
+
                             } else {
                                 logs("processTransResult")
                             }
@@ -1072,7 +1075,7 @@ class MvvmSdkImplActivity : AppCompatActivity() {
                             logs("onTransFinish,retCode: ${cardDetails?.resultCode}, transResult: ${cardDetails?.transResult}, cvm result: ${cardDetails?.cvmResult}")
 
                             if (cardDetails?.resultCode == RetCode.EMV_OK) {
-                                logs("OK")
+                                viewModel.processCvm(cardDetails, TXN_TYPE_PICC)
                             } else {
                                 logs("processTransResult")
                             }
@@ -1103,8 +1106,53 @@ class MvvmSdkImplActivity : AppCompatActivity() {
 
         }
 
-    }
+        viewModel.checkTransResult.observe(this) { dataState ->
+            when (dataState) {
+                is DataState.Success -> {
+                    val msgCvm = dataState.data
+                    println("Cvm Status: $msgCvm")
 
+                    viewModel.getBitmapVocher("TEST DE IMPRESION|VOUCHER TEST: Q.300.00")
+                }
+
+                is DataState.Error -> {
+                    println("Error: ${dataState.exception}")
+                }
+
+                else -> Unit
+            }
+        }
+
+        viewModel.getBitmapVocher.observe(this) { dataState ->
+            when (dataState) {
+                is DataState.Success -> {
+                    val img = dataState.data
+                    viewModel.printVocher(img)
+                }
+
+                is DataState.Error -> {
+                    toast(dataState.exception.message!!)
+                }
+
+                else -> Unit
+            }
+        }
+
+        viewModel.printVocher.observe(this) { dataState ->
+            when (dataState) {
+                is DataState.Success -> {
+                    toast("Impresion Finalizada")
+                }
+
+                is DataState.Error -> {
+                    toast(dataState.exception.message!!)
+                }
+
+                else -> Unit
+            }
+        }
+
+    }
 
     private fun getFirstGACTag() {
         var data = com.pax.jemv.clcommon.ByteArray()
