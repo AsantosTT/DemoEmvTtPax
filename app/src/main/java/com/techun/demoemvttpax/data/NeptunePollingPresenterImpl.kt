@@ -15,8 +15,6 @@ import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.DetectCardR
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.LogUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 

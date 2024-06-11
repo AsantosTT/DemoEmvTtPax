@@ -1,24 +1,20 @@
 package com.techun.demoemvttpax.data
 
 import android.content.Context
-import android.os.ConditionVariable
 import android.os.SystemClock
 import com.pax.dal.entity.EBeepMode
 import com.pax.dal.entity.EPiccRemoveMode
 import com.pax.dal.entity.EPiccType
 import com.pax.dal.exceptions.PiccDevException
-import com.pax.jemv.clcommon.RetCode
 import com.pax.jemv.device.DeviceManager
 import com.techun.demoemvttpax.domain.repository.TransProcessContractRepository
 import com.techun.demoemvttpax.utils.DataState
+import com.techun.demoemvttpax.utils.EmvDataState
 import com.tecnologiatransaccional.ttpaxsdk.TTPaxApi
 import com.tecnologiatransaccional.ttpaxsdk.neptune.Sdk
-import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.emv_reader.AppSelectTask
-import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.emv_reader.EnterPinTask
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.param.EmvProcessParam
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.param.EmvTransParam
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.IStatusListener
-import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.contact.CandidateAID
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.contact.EmvProcess
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.contact.IEmvTransProcessListener
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.contactless.ClssProcess
@@ -34,7 +30,9 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 class TransProcessContractImpl @Inject constructor(
-    @ApplicationContext private val context: Context, private val sdk: TTPaxApi
+    @ApplicationContext private val context: Context,
+    private val sdk: TTPaxApi,
+    private val iEmvTransProcessListener: IEmvTransProcessListener
 ) : TransProcessContractRepository {
 
     private var needShowRemoveCard: Boolean = true
@@ -111,43 +109,7 @@ class TransProcessContractImpl @Inject constructor(
     override suspend fun startEmvTrans(): DataState<TransResult> {
         return withContext(Dispatchers.Default) {
             try {
-                val enterPinCv = ConditionVariable()
-                val appSelectCv = ConditionVariable()
-                val enterPinRet = 0
-                var appSelectRet = 0
-                val enterPinTask: EnterPinTask? = null
-
-                val emvTransProcessListener: IEmvTransProcessListener =
-                    object : IEmvTransProcessListener {
-                        override fun onWaitAppSelect(
-                            isFirstSelect: Boolean, candList: List<CandidateAID?>?
-                        ): Int {
-                            if (candList == null || candList.size == 0) {
-                                return RetCode.EMV_NO_APP
-                            }
-                            val selectAppTask = AppSelectTask()
-                            selectAppTask.registerAppSelectListener { selectRetCode ->
-                                appSelectRet = selectRetCode
-                                appSelectCv.open()
-                            }
-                            selectAppTask.startSelectApp(isFirstSelect, candList)
-                            appSelectCv.block()
-                            return appSelectRet
-                        }
-
-                        override fun onCardHolderPwd(
-                            bOnlinePin: Boolean, leftTimes: Int, pinData: kotlin.ByteArray?
-                        ): Int {
-
-                            println("onCardHolderPwd, current thread " + Thread.currentThread().name + ", id:" + Thread.currentThread().id)
-                            enterPinProcess(true, bOnlinePin, leftTimes)
-                            enterPinCv.block()
-                            return enterPinRet
-                        }
-
-                    }
-
-                EmvProcess.getInstance().registerEmvProcessListener(emvTransProcessListener)
+                EmvProcess.getInstance().registerEmvProcessListener(iEmvTransProcessListener)
                 val deviceImplNeptune = DeviceImplNeptune.getInstance()
                 DeviceManager.getInstance().setIDevice(deviceImplNeptune)
                 val transResult = EmvProcess.getInstance().startTransProcess()
@@ -156,10 +118,6 @@ class TransProcessContractImpl @Inject constructor(
                 DataState.Error(e)
             }
         }
-    }
-
-    private fun enterPinProcess(b: Boolean, bOnlinePin: Boolean, leftTimes: Int) {
-
     }
 
     override suspend fun startClssTrans(): DataState<TransResult> {

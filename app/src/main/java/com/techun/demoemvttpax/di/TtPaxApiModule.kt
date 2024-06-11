@@ -1,10 +1,10 @@
 package com.techun.demoemvttpax.di
 
 import android.content.Context
-import com.pax.dal.ICardReaderHelper
 import com.pax.gl.page.PaxGLPage
+import com.techun.demoemvttpax.data.IEmvTransProcessListenerImpl
 import com.tecnologiatransaccional.ttpaxsdk.TTPaxApi
-import com.tecnologiatransaccional.ttpaxsdk.neptune.Sdk
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.contact.IEmvTransProcessListener
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -28,5 +28,6 @@ object TtPaxApiModule {
     @Singleton
     fun provideICardReaderHelper(@ApplicationContext context: Context, ttPaxApi: TTPaxApi) =
         ttPaxApi.getDal(context)!!.cardReaderHelper
+
 
 }
