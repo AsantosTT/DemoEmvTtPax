@@ -1,10 +1,20 @@
 package com.techun.demoemvttpax.ui.activities
 
+import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.Gravity
 import android.view.View.GONE
 import android.view.View.VISIBLE
+import android.view.ViewGroup
+import android.view.WindowManager
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.Animation
+import android.view.animation.TranslateAnimation
+import android.widget.PopupWindow
+import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import com.pax.dal.entity.EReaderType
@@ -13,6 +23,7 @@ import com.techun.demoemvttpax.R
 import com.techun.demoemvttpax.databinding.ActivityMvvmSdkImplBinding
 import com.techun.demoemvttpax.ui.viewmodel.PaxViewModel
 import com.techun.demoemvttpax.utils.DataState
+import com.techun.demoemvttpax.utils.EnterPinTask
 import com.techun.demoemvttpax.utils.keyboard.currency.CurrencyConverter
 import com.techun.demoemvttpax.utils.keyboard.text.EditorActionListener
 import com.techun.demoemvttpax.utils.keyboard.text.EnterAmountTextWatcher
@@ -20,7 +31,12 @@ import com.techun.demoemvttpax.utils.toast
 import com.tecnologiatransaccional.ttpaxsdk.neptune.Sdk
 import com.tecnologiatransaccional.ttpaxsdk.neptune.Sdk.Companion.instance
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.contact.EmvProcess
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.contactless.ClssProcess
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.CardInfoUtils
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.ConvertHelper
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.EEnterPinType
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.EnterPinResult
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.ScreenUtils
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.glStatus
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.interfaces.IConvert
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.xmlparam.entity.clss.PayPassAid
@@ -33,6 +49,7 @@ import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.xmlparam.entity.c
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.xmlparam.entity.common.CapkRevoke
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.xmlparam.entity.common.Config
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.xmlparam.entity.contact.EmvAid
+import com.tecnologiatransaccional.ttpaxsdk.utils.Utils.TXN_TYPE_ICC
 import com.tecnologiatransaccional.ttpaxsdk.utils.Utils.TXN_TYPE_PICC
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -40,6 +57,12 @@ import dagger.hilt.android.AndroidEntryPoint
 class MvvmSdkImplActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMvvmSdkImplBinding
     private val viewModel: PaxViewModel by viewModels()
+    private var enterPinTask: EnterPinTask? = null
+    private var enterPinRet = 0
+    private var pinResult = 0
+    private var pinText: TextView? = null
+    private var mEnterPinPopWindow: PopupWindow? = null
+    private var currentTxnType: Int = TXN_TYPE_ICC
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -1063,8 +1086,8 @@ class MvvmSdkImplActivity : AppCompatActivity() {
 
                             if (cardDetails?.resultCode == RetCode.EMV_OK) {
                                 logs("OK")
-
-
+                                currentTxnType = TXN_TYPE_ICC
+                                viewModel.processCvm(cardDetails, TXN_TYPE_ICC)
                             } else {
                                 logs("processTransResult")
                             }
@@ -1075,7 +1098,11 @@ class MvvmSdkImplActivity : AppCompatActivity() {
                             logs("onTransFinish,retCode: ${cardDetails?.resultCode}, transResult: ${cardDetails?.transResult}, cvm result: ${cardDetails?.cvmResult}")
 
                             if (cardDetails?.resultCode == RetCode.EMV_OK) {
-                                viewModel.processCvm(cardDetails, TXN_TYPE_PICC)
+                                //viewModel.processCvm(cardDetails, TXN_TYPE_PICC)
+
+                                // for contactless online pin process
+                                currentTxnType = TXN_TYPE_PICC
+                                enterPinProcess(false, true, 0)
                             } else {
                                 logs("processTransResult")
                             }
@@ -1184,4 +1211,178 @@ class MvvmSdkImplActivity : AppCompatActivity() {
         Log.d("logs-demo-app", "$msg")
     }
 
+
+    private fun enterPinProcess(isICC: Boolean, bOnlinePin: Boolean, leftTimes: Int) {
+        if (enterPinTask != null) {
+            enterPinTask!!.unregisterListener()
+            enterPinTask = null
+        }
+        Log.i("enterPinProcess", "isOnlinePin:$bOnlinePin,leftTimes:$leftTimes")
+        enterPinTask = EnterPinTask()
+        var enterPinPrompt = "Please Enter PIN"
+        if (bOnlinePin) {
+            var pan = ""
+            if (isICC) {
+                val byteArray = com.pax.jemv.clcommon.ByteArray()
+                EmvProcess.getInstance().getTlv(0x57, byteArray)
+                val strTrack2: String = CardInfoUtils.getTrack2FromTag57(byteArray.data)
+                pan = CardInfoUtils.getPan(strTrack2)
+            } else {
+                val strTrack2: String = ClssProcess.getInstance().track2
+                Log.i("enterPinProcess", "ClssProcess getTrack2() = $strTrack2")
+                pan = CardInfoUtils.getPan(strTrack2)
+                Log.i("enterPinProcess", "ClssProcess getPan() = $pan")
+            }
+
+            enterPinTask!!.setOnlinePan(pan)
+            enterPinTask!!.setEnterPinType(EEnterPinType.ONLINE_PIN)
+        } else {
+            enterPinPrompt = "$enterPinPrompt($leftTimes)"
+            enterPinTask!!.setEnterPinType(EEnterPinType.OFFLINE_PCI_MODE)
+        }
+        onUpdatePinLen("")
+
+        enterPinTask!!.registerListener(object : EnterPinTask.IEnterPinListener {
+            override fun onUpdatePinLen(pinLen: String?) {
+                onUpdatePinLenUI(pinLen)
+            }
+
+            override val enteredPin: String
+                get() = getEnteredPin()
+
+            override fun onEnterPinFinish(enterPinResult: EnterPinResult?) {
+                if (enterPinResult?.ret == EnterPinResult.RET_OFFLINE_PIN_READY) {
+                    enterPinRet = EnterPinResult.RET_SUCC
+                } else {
+                    enterPinRet = enterPinResult?.ret!!
+                    onEnterPinFinishUI(enterPinRet)
+                    Log.i(
+                        "onEnterPinFinish", "onEnterPinFinish, enterPinRet:$enterPinRet"
+                    )
+                }
+
+                //enterPinCv.open()
+            }
+
+        })
+        onStartEnterPin(enterPinPrompt)
+        enterPinTask!!.startEnterPin()
+    }
+
+    private fun onEnterPinFinishUI(pinResult: Int) {
+        Log.e("onEnterPinFinishUI", "onEnterPinFinish: $pinResult")
+
+        this.pinResult = pinResult
+        runOnUiThread {
+            if (mEnterPinPopWindow != null && mEnterPinPopWindow!!.isShowing) {
+                mEnterPinPopWindow!!.dismiss()
+            }
+            if (pinResult == EnterPinResult.RET_SUCC || pinResult == EnterPinResult.RET_CANCEL || pinResult == EnterPinResult.RET_TIMEOUT || pinResult == EnterPinResult.RET_PIN_BY_PASS || pinResult == EnterPinResult.RET_OFFLINE_PIN_READY || pinResult == EnterPinResult.RET_NO_KEY) {
+                Log.i("onEnterPinFinishUI", "to do nothing")
+            } else {
+                //FRS 2020-08-23 Se agrego el runOnUiThread para evitar errores por threads
+                runOnUiThread {
+                    Toast.makeText(this, pinResult.toString() + "", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun getEnteredPin(): String {
+        Log.e(
+            "getEnteredPin", "getEnteredPin: "
+        )
+        return if (pinText == null) "" else pinText!!.text.toString()
+    }
+
+    private fun onUpdatePinLenUI(pin: String?) {
+        Log.e(
+            "onUpdatePinLenUI", "onUpdatePinLen: $pin"
+        )
+        runOnUiThread {
+            if (pinText != null) {
+                pinText!!.text = pin
+            }
+        }
+    }
+
+    private fun onStartEnterPin(prompt: String) {
+        Log.i("MvvmSdkImplActivity", "onStartEnterPin: $prompt")
+        Log.i(
+            "MvvmSdkImplActivity",
+            "onStartEnterPin, current thread: ${Thread.currentThread().name}, id:${Thread.currentThread().id}"
+        )
+        runOnUiThread { displayEnterPinDlg(prompt) }
+    }
+
+    private fun onUpdatePinLen(pin: String) {
+        Log.e("MvvmSdkImplActivity", "onUpdatePinLen: $pin")
+
+        runOnUiThread {
+            if (pinText != null) {
+                pinText!!.text = pin
+            }
+        }
+    }
+
+    private fun displayEnterPinDlg(title: String) {
+        if (isFinishing) {
+            return
+        }
+        if (mEnterPinPopWindow != null) {
+            if (mEnterPinPopWindow!!.isShowing) {
+                mEnterPinPopWindow!!.dismiss()
+            }
+            mEnterPinPopWindow = null
+        }
+
+        val popView = layoutInflater.inflate(R.layout.dlg_enter_pin, null)
+        mEnterPinPopWindow = PopupWindow(
+            popView, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        pinText = popView.findViewById(R.id.tv_pin)
+        val titleTxt = popView.findViewById<TextView>(R.id.tv_title)
+        titleTxt.text = title
+        mEnterPinPopWindow!!.setBackgroundDrawable(ColorDrawable(resources.getColor(R.color.white)))
+        mEnterPinPopWindow!!.isFocusable = true
+        mEnterPinPopWindow!!.isOutsideTouchable = false
+        val animation = TranslateAnimation(
+            Animation.RELATIVE_TO_PARENT,
+            0f,
+            Animation.RELATIVE_TO_PARENT,
+            0f,
+            Animation.RELATIVE_TO_PARENT,
+            1f,
+            Animation.RELATIVE_TO_PARENT,
+            0f
+        )
+        animation.interpolator = AccelerateInterpolator()
+        animation.duration = 200
+        mEnterPinPopWindow!!.setOnDismissListener {
+            ScreenUtils.lightOn(this)
+            if (currentTxnType == TXN_TYPE_PICC) {
+                if (pinResult != 0) {
+                    //FRS 2020-08-23 Se agrego el runOnUiThread para evitar errores por threads
+                    runOnUiThread {
+                        Toast.makeText(
+                            this, "getString pinblock err: $pinResult", Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                } else {
+                    checkTransResult()
+                }
+            }
+        }
+
+        mEnterPinPopWindow!!.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        mEnterPinPopWindow!!.showAtLocation(
+            binding.viewBottom, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL, 0, 0
+        )
+        popView.startAnimation(animation)
+        ScreenUtils.lightOff(this)
+    }
+
+    private fun checkTransResult() {
+        Log.i("checkTransResult", "checkTransResult")
+    }
 }
