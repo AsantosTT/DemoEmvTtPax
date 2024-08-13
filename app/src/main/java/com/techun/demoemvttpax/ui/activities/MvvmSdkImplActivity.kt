@@ -17,6 +17,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import com.pax.dal.entity.ECheckMode
+import com.pax.dal.entity.EPedKeyType
 import com.pax.dal.entity.EReaderType
 import com.pax.jemv.clcommon.RetCode
 import com.techun.demoemvttpax.R
@@ -53,8 +55,9 @@ import com.tecnologiatransaccional.ttpaxsdk.utils.Utils.TXN_TYPE_ICC
 import com.tecnologiatransaccional.ttpaxsdk.utils.Utils.TXN_TYPE_PICC
 import dagger.hilt.android.AndroidEntryPoint
 
+
 @AndroidEntryPoint
-class MvvmSdkImplActivity : AppCompatActivity() {
+class   MvvmSdkImplActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMvvmSdkImplBinding
     private val viewModel: PaxViewModel by viewModels()
     private var enterPinTask: EnterPinTask? = null
@@ -981,6 +984,8 @@ class MvvmSdkImplActivity : AppCompatActivity() {
         )
 
         println("Paypass Param: $paypassParam")
+
+
 
         viewModel.sdkInit(capkParam, emvAidList, emvConfig, paywaveParams, paypassParam)
     }

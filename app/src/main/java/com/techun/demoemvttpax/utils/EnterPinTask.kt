@@ -95,6 +95,7 @@ class EnterPinTask {
     private fun enterOnlinePin(panBlock: String) {
         val pinResult = EnterPinResult()
         try {
+            //ped.getDUKPTPin()
             ped.setIntervalTime(1, 1)
             ped.setInputPinListener { eKeyCode: EKeyCode ->
                 var temp: String

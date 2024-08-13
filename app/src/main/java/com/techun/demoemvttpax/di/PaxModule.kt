@@ -24,7 +24,8 @@ import javax.inject.Singleton
 object PaxModule {
     @Provides
     @Singleton
-    fun providePaxRepository(sdk: TTPaxApi): PaxRepository = PaxRepositoryImpl(sdk)
+    fun providePaxRepository(@ApplicationContext context: Context, sdk: TTPaxApi): PaxRepository =
+        PaxRepositoryImpl(context, sdk)
 
 
     @Provides
