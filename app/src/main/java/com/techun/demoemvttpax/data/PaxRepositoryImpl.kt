@@ -4,7 +4,9 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
 import com.pax.dal.IPed
+import com.pax.dal.entity.DUKPTResult
 import com.pax.dal.entity.ECheckMode
+import com.pax.dal.entity.EDUKPTPinMode
 import com.pax.dal.entity.EPedKeyType
 import com.pax.dal.entity.EPedType
 import com.pax.dal.entity.EPinBlockMode
@@ -51,33 +53,33 @@ class PaxRepositoryImpl @Inject constructor(
                     paramPayPassAids = paypassParam,
                     onSuccess = {
 
-                        val byte_TMK: ByteArray = strToBcd(
+                        //54DCBF79AEB970329E97B98651E619CE
+                        //67BC0E979825972CC729FE6246E0F7AB
+                        //D3249731AFAD89F7D96C1D4133225349
+
+                        val byte_TPK: ByteArray = strToBcd(
                             "D3249731AFAD89F7D96C1D4133225349",
                             IConvert.EPaddingPosition.PADDING_LEFT
                         )
-                        //54DCBF79AEB970329E97B98651E619CE
-
-                        //67BC0E979825972CC729FE6246E0F7AB
-
-                        //D3249731AFAD89F7D96C1D4133225349
 
                         val ped = sdk.getDal(context)?.getPed(EPedType.INTERNAL)
 
                         val writeResult = writeKey(
                             ped!!,
-                            EPedKeyType.TLK,
-                            0x00.toByte(),
                             EPedKeyType.TMK,
                             1.toByte(),
-                            byte_TMK,
+                            EPedKeyType.TPK,
+                            1.toByte(),
+                            byte_TPK,
                             ECheckMode.KCV_NONE,
                             null
                         )
 
-                        Log.i(TAG, "write Key Result: $writeResult")
+                        Log.i(TAG, "write Key ${if (writeResult) "success" else "failed"}")
 
                         val num = "4391242409331300"
-                        val panArray: ByteArray = num.substring(num.length - 13, num.length - 1).toByteArray()
+                        val panArray: ByteArray =
+                            num.substring(num.length - 13, num.length - 1).toByteArray()
                         val dataIn = ByteArray(16)
                         dataIn[0] = 0x00
                         dataIn[1] = 0x00
@@ -87,12 +89,18 @@ class PaxRepositoryImpl @Inject constructor(
 
                         val pinblock = getPinBlock(ped, dataIn)
 
+                        Log.e(TAG, "Generated Pinblock: ${ConvertHelper.getConvert().bcdToStr(pinblock)}")
 
+                        val result: DUKPTResult = ped.getDUKPTPin(1.toByte(), "4", dataIn, EDUKPTPinMode.ISO9564_0, 60000)
                         Log.e(
                             TAG,
-                            "Generated Pinblock: ${ConvertHelper.getConvert().bcdToStr(pinblock)}"
+                            "X1 -- Generated Pinblock: ${ConvertHelper.getConvert().bcdToStr(result.ksn)}"
                         )
 
+                        /*val ksn = ped.getDUKPTKsn(0x01)
+
+                        Log.e(TAG, "KSN: ${ConvertHelper.getConvert().bcdToStr(ksn)}")
+*/
                         isSuccessful = true
                     },
                     onFeature = {
@@ -141,8 +149,8 @@ class PaxRepositoryImpl @Inject constructor(
 
     private fun getPinBlock(ped: IPed?, dataIn: ByteArray?): ByteArray? {
         try {
-            val result =
-                ped?.getPinBlock(1.toByte(), "0,4,6", dataIn, EPinBlockMode.ISO9564_0, 60000)
+            val result = ped?.getPinBlock(1.toByte(), "0,4,6", dataIn, EPinBlockMode.ISO9564_0, 60000)
+
             println("getPinBlock")
             return result
         } catch (e: PedDevException) {
