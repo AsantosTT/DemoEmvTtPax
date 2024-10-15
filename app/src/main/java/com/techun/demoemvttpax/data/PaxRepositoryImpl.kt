@@ -52,50 +52,173 @@ class PaxRepositoryImpl @Inject constructor(
                     paramPayWave = paywaveParams,
                     paramPayPassAids = paypassParam,
                     onSuccess = {
-
-                        //54DCBF79AEB970329E97B98651E619CE
-                        //67BC0E979825972CC729FE6246E0F7AB
-                        //D3249731AFAD89F7D96C1D4133225349
-
-                        val byte_TPK: ByteArray = strToBcd(
-                            "D3249731AFAD89F7D96C1D4133225349",
-                            IConvert.EPaddingPosition.PADDING_LEFT
-                        )
-
                         val ped = sdk.getDal(context)?.getPed(EPedType.INTERNAL)
 
-                        val writeResult = writeKey(
-                            ped!!,
-                            EPedKeyType.TMK,
-                            1.toByte(),
-                            EPedKeyType.TPK,
-                            1.toByte(),
-                            byte_TPK,
-                            ECheckMode.KCV_NONE,
-                            null
-                        )
+                        ped?.let {
+                            //Add TIK & KSN
+                            val tik16Clr = byteArrayOf(
+                                0x6A.toByte(),
+                                0xC2.toByte(),
+                                0x92.toByte(),
+                                0xFA.toByte(),
+                                0xA1.toByte(),
+                                0x31.toByte(),
+                                0x5B.toByte(),
+                                0x4D.toByte(),
+                                0x85.toByte(),
+                                0x8A.toByte(),
+                                0xB3.toByte(),
+                                0xA3.toByte(),
+                                0xD7.toByte(),
+                                0xD5.toByte(),
+                                0x93.toByte(),
+                                0x3A.toByte()
+                            )
+                            val ksn = byteArrayOf(
+                                0xff.toByte(),
+                                0xff.toByte(),
+                                0x98.toByte(),
+                                0x76.toByte(),
+                                0x54.toByte(),
+                                0x32.toByte(),
+                                0x10.toByte(),
+                                0xE0.toByte(),
+                                0x00.toByte(),
+                                0x00.toByte()
+                            )
 
-                        Log.i(TAG, "write Key ${if (writeResult) "success" else "failed"}")
+                            val verString: Boolean = it.writeTIK(tik16Clr, ksn)
 
-                        val num = "4391242409331300"
-                        val panArray: ByteArray =
-                            num.substring(num.length - 13, num.length - 1).toByteArray()
-                        val dataIn = ByteArray(16)
-                        dataIn[0] = 0x00
-                        dataIn[1] = 0x00
-                        dataIn[2] = 0x00
-                        dataIn[3] = 0x00
-                        System.arraycopy(panArray, 0, dataIn, 4, panArray.size)
+                            if (verString) {
 
-                        val pinblock = getPinBlock(ped, dataIn)
+                                val num = "4391242409331300"
+                                val panArray: ByteArray = num.substring(num.length - 13, num.length - 1).toByteArray()
+                                val dataIn = ByteArray(16)
+                                dataIn[0] = 0x00
+                                dataIn[1] = 0x00
+                                dataIn[2] = 0x00
+                                dataIn[3] = 0x00
+                                System.arraycopy(panArray, 0, dataIn, 4, panArray.size)
 
-                        Log.e(TAG, "Generated Pinblock: ${ConvertHelper.getConvert().bcdToStr(pinblock)}")
+                                val result: DUKPTResult? = it.getDUKPTPin(dataIn)
+                                if (result != null) {
+                                    Log.i(
+                                        "ss",
+                                        "ksn:" + ConvertHelper.getConvert().bcdToStr(result.ksn)
+                                    )
+                                    Log.i(
+                                        "ss",
+                                        "Pinblock:" + ConvertHelper.getConvert().bcdToStr(result.result)
+                                    )
 
-                        val result: DUKPTResult = ped.getDUKPTPin(1.toByte(), "4", dataIn, EDUKPTPinMode.ISO9564_0, 60000)
-                        Log.e(
-                            TAG,
-                            "X1 -- Generated Pinblock: ${ConvertHelper.getConvert().bcdToStr(result.ksn)}"
-                        )
+                                    //ksn Increment
+                                    ped.incDUKPTKsn(0x01.toByte())
+
+                                    val verString = it.incDUKPTKsn()
+                                    if (verString) {
+                                        Log.i(TAG, "initSdk: inDUPKTKsn  success")
+
+                                        val num = "4391242409331300"
+                                        val panArray: ByteArray = num.substring(num.length - 13, num.length - 1).toByteArray()
+                                        val dataIn = ByteArray(16)
+                                        dataIn[0] = 0x00
+                                        dataIn[1] = 0x00
+                                        dataIn[2] = 0x00
+                                        dataIn[3] = 0x00
+                                        System.arraycopy(panArray, 0, dataIn, 4, panArray.size)
+
+                                        val result: DUKPTResult? = it.getDUKPTPin(dataIn)
+                                        if (result != null) {
+                                            Log.i(
+                                                "ssX2",
+                                                "ksn:" + ConvertHelper.getConvert().bcdToStr(result.ksn)
+                                            )
+                                            Log.i(
+                                                "ssX2",
+                                                "Pinblock:" + ConvertHelper.getConvert().bcdToStr(result.result)
+                                            )
+
+                                            //ksn Increment
+                                            ped.incDUKPTKsn(0x01.toByte())
+
+                                            val verString = it.incDUKPTKsn()
+                                            if (verString) {
+                                                Log.i(TAG, "initSdkX2: inDUPKTKsn  success")
+                                            } else {
+                                                Log.e(TAG, "initSdkX2: inDUPKTKsn  error")
+                                            }
+
+                                        } else {
+                                            Log.e(TAG, "initSdkX2: Error DUKPTResult")
+                                        }
+
+                                    } else {
+                                        Log.e(TAG, "initSdk: inDUPKTKsn  error")
+                                    }
+
+                                } else {
+                                    Log.e(TAG, "initSdk: Error DUKPTResult")
+                                }
+                            } else {
+                                Log.e(TAG, "initSdk: Error Loading Keys")
+                            }
+
+                        } ?: run {
+                            Log.e(TAG, "initSdk: Error ped")
+                        }
+
+                        /*
+                                                //54DCBF79AEB970329E97B98651E619CE
+                                                //67BC0E979825972CC729FE6246E0F7AB
+                                                //D3249731AFAD89F7D96C1D4133225349
+
+                                                val byte_TPK: ByteArray = strToBcd(
+                                                    "D3249731AFAD89F7D96C1D4133225349",
+                                                    IConvert.EPaddingPosition.PADDING_LEFT
+                                                )
+
+
+                                                val writeResult = writeKey(
+                                                    ped!!,
+                                                    EPedKeyType.TMK,
+                                                    1.toByte(),
+                                                    EPedKeyType.TPK,
+                                                    1.toByte(),
+                                                    byte_TPK,
+                                                    ECheckMode.KCV_NONE,
+                                                    null
+                                                )
+
+                                                Log.i(TAG, "write Key ${if (writeResult) "success" else "failed"}")
+
+                                                val num = "4391242409331300"
+                                                val panArray: ByteArray =
+                                                    num.substring(num.length - 13, num.length - 1).toByteArray()
+                                                val dataIn = ByteArray(16)
+                                                dataIn[0] = 0x00
+                                                dataIn[1] = 0x00
+                                                dataIn[2] = 0x00
+                                                dataIn[3] = 0x00
+                                                System.arraycopy(panArray, 0, dataIn, 4, panArray.size)
+
+                                                val pinblock = getPinBlock(ped, dataIn)
+
+                                                Log.e(
+                                                    TAG,
+                                                    "Generated Pinblock: ${ConvertHelper.getConvert().bcdToStr(pinblock)}"
+                                                )
+
+                                                val result: DUKPTResult =
+                                                    ped.getDUKPTPin(1.toByte(), "4", dataIn, EDUKPTPinMode.ISO9564_0, 60000)
+
+                                                Log.e(
+                                                    TAG, "X1 -- Generated Pinblock: ${
+                                                        ConvertHelper.getConvert().bcdToStr(result.ksn)
+                                                    }"
+                                                )*/
+
+                        //Increment
+
 
                         /*val ksn = ped.getDUKPTKsn(0x01)
 
@@ -114,6 +237,49 @@ class PaxRepositoryImpl @Inject constructor(
                 emit(DataState.Finished)
             }
         }.flowOn(Dispatchers.IO)
+    }
+
+    // ===================================================================================================================
+    private fun writeTIK(ped: IPed): Boolean {
+        val tik16Clr = byteArrayOf(
+            0x6A.toByte(),
+            0xC2.toByte(),
+            0x92.toByte(),
+            0xFA.toByte(),
+            0xA1.toByte(),
+            0x31.toByte(),
+            0x5B.toByte(),
+            0x4D.toByte(),
+            0x85.toByte(),
+            0x8A.toByte(),
+            0xB3.toByte(),
+            0xA3.toByte(),
+            0xD7.toByte(),
+            0xD5.toByte(),
+            0x93.toByte(),
+            0x3A.toByte()
+        )
+        val ksn = byteArrayOf(
+            0xff.toByte(),
+            0xff.toByte(),
+            0x98.toByte(),
+            0x76.toByte(),
+            0x54.toByte(),
+            0x32.toByte(),
+            0x10.toByte(),
+            0xE0.toByte(),
+            0x00.toByte(),
+            0x00.toByte()
+        )
+        try {
+            ped.writeTIK(0x01.toByte(), 0x00.toByte(), tik16Clr, ksn, ECheckMode.KCV_NONE, null)
+            Log.i(TAG, "writeTIK: Success")
+            return true
+        } catch (e: PedDevException) {
+            e.printStackTrace()
+            Log.e(TAG, "writeTIK: $e")
+            return false
+        }
     }
 
     // PED writeKey include TMK,TPK,TAK,TDk
@@ -149,7 +315,8 @@ class PaxRepositoryImpl @Inject constructor(
 
     private fun getPinBlock(ped: IPed?, dataIn: ByteArray?): ByteArray? {
         try {
-            val result = ped?.getPinBlock(1.toByte(), "0,4,6", dataIn, EPinBlockMode.ISO9564_0, 60000)
+            val result =
+                ped?.getPinBlock(1.toByte(), "0,4,6", dataIn, EPinBlockMode.ISO9564_0, 60000)
 
             println("getPinBlock")
             return result
@@ -222,4 +389,43 @@ class PaxRepositoryImpl @Inject constructor(
             }
         }
     }
+}
+
+
+private fun IPed.incDUKPTKsn(): Boolean {
+    try {
+        this.incDUKPTKsn(0x01.toByte())
+        Log.i(TAG, "incDUKPTKsn")
+        return true
+    } catch (e: PedDevException) {
+        e.printStackTrace()
+        Log.e(TAG, "incDUKPTKsn: $e")
+        return false
+    }
+}
+
+private fun IPed.writeTIK(tik16Clr: ByteArray, ksn: ByteArray): Boolean {
+    try {
+        this.writeTIK(0x01.toByte(), 0x00.toByte(), tik16Clr, ksn, ECheckMode.KCV_NONE, null)
+        Log.i(TAG, "writeTIK: Success")
+        return true
+    } catch (e: PedDevException) {
+        e.printStackTrace()
+        Log.e(TAG, "writeTIK: $e")
+        return false
+    }
+}
+
+private fun IPed.getDUKPTPin(dataIn: ByteArray): DUKPTResult? {
+    try {
+        val bytes_ped: DUKPTResult =
+            this.getDUKPTPin(1.toByte(), "4", dataIn, EDUKPTPinMode.ISO9564_0_INC, 20000)
+        Log.i(TAG, "getDUKPTPin")
+        return bytes_ped
+    } catch (e: PedDevException) {
+        e.printStackTrace()
+        Log.e(TAG, "getDUKPTPin: $e")
+        return null
+    }
+
 }
