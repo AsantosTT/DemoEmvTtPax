@@ -7,14 +7,12 @@ import com.pax.dal.IPed
 import com.pax.dal.entity.DUKPTResult
 import com.pax.dal.entity.ECheckMode
 import com.pax.dal.entity.EDUKPTPinMode
-import com.pax.dal.entity.EPedKeyType
 import com.pax.dal.entity.EPedType
-import com.pax.dal.entity.EPinBlockMode
 import com.pax.dal.exceptions.PedDevException
 import com.techun.demoemvttpax.domain.repository.PaxRepository
 import com.techun.demoemvttpax.utils.DataState
 import com.tecnologiatransaccional.ttpaxsdk.TTPaxApi
-import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.ConvertHelper
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.PedApiUtils
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.interfaces.IConvert
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.xmlparam.entity.clss.PayPassAid
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.xmlparam.entity.clss.PayWaveParam
@@ -54,7 +52,10 @@ class PaxRepositoryImpl @Inject constructor(
                     onSuccess = {
                         val ped = sdk.getDal(context)?.getPed(EPedType.INTERNAL)
 
-                        ped?.let {
+                        PedApiUtils.eraseKey()
+                        PedApiUtils.writeTPK(0x02.toByte())
+
+                     /*   ped?.let {
                             //Add TIK & KSN
                             val tik16Clr = byteArrayOf(
                                 0x6A.toByte(),
@@ -90,7 +91,6 @@ class PaxRepositoryImpl @Inject constructor(
                             val verString: Boolean = it.writeTIK(tik16Clr, ksn)
 
                             if (verString) {
-
                                 val num = "4391242409331300"
                                 val panArray: ByteArray = num.substring(num.length - 13, num.length - 1).toByteArray()
                                 val dataIn = ByteArray(16)
@@ -118,7 +118,19 @@ class PaxRepositoryImpl @Inject constructor(
                                     if (verString) {
                                         Log.i(TAG, "initSdk: inDUPKTKsn  success")
 
-                                        val num = "4391242409331300"
+                                       val data = com.pax.jemv.clcommon.ByteArray()
+                                       val ret = EmvProcess.getInstance().getTlv(0x52, data)
+
+                                        if (ret == RetCode.EMV_OK) {
+                                            val dataArr = ByteArray(data.length)
+                                            System.arraycopy(data.data, 0, dataArr, 0, data.length)
+                                            val firstGacTSI = ConvertHelper.getConvert().bcdToStr(dataArr)
+                                            Log.i("getFirstGACTag", "firstGacTSI: $firstGacTSI")
+                                        } else {
+                                            Log.e(TAG, "initSdk: Fallo")
+                                        }
+
+                                        *//*val num = "4391242409331300"
                                         val panArray: ByteArray = num.substring(num.length - 13, num.length - 1).toByteArray()
                                         val dataIn = ByteArray(16)
                                         dataIn[0] = 0x00
@@ -151,7 +163,7 @@ class PaxRepositoryImpl @Inject constructor(
                                         } else {
                                             Log.e(TAG, "initSdkX2: Error DUKPTResult")
                                         }
-
+*//*
                                     } else {
                                         Log.e(TAG, "initSdk: inDUPKTKsn  error")
                                     }
@@ -165,7 +177,7 @@ class PaxRepositoryImpl @Inject constructor(
 
                         } ?: run {
                             Log.e(TAG, "initSdk: Error ped")
-                        }
+                        }*/
 
                         /*
                                                 //54DCBF79AEB970329E97B98651E619CE
@@ -237,94 +249,6 @@ class PaxRepositoryImpl @Inject constructor(
                 emit(DataState.Finished)
             }
         }.flowOn(Dispatchers.IO)
-    }
-
-    // ===================================================================================================================
-    private fun writeTIK(ped: IPed): Boolean {
-        val tik16Clr = byteArrayOf(
-            0x6A.toByte(),
-            0xC2.toByte(),
-            0x92.toByte(),
-            0xFA.toByte(),
-            0xA1.toByte(),
-            0x31.toByte(),
-            0x5B.toByte(),
-            0x4D.toByte(),
-            0x85.toByte(),
-            0x8A.toByte(),
-            0xB3.toByte(),
-            0xA3.toByte(),
-            0xD7.toByte(),
-            0xD5.toByte(),
-            0x93.toByte(),
-            0x3A.toByte()
-        )
-        val ksn = byteArrayOf(
-            0xff.toByte(),
-            0xff.toByte(),
-            0x98.toByte(),
-            0x76.toByte(),
-            0x54.toByte(),
-            0x32.toByte(),
-            0x10.toByte(),
-            0xE0.toByte(),
-            0x00.toByte(),
-            0x00.toByte()
-        )
-        try {
-            ped.writeTIK(0x01.toByte(), 0x00.toByte(), tik16Clr, ksn, ECheckMode.KCV_NONE, null)
-            Log.i(TAG, "writeTIK: Success")
-            return true
-        } catch (e: PedDevException) {
-            e.printStackTrace()
-            Log.e(TAG, "writeTIK: $e")
-            return false
-        }
-    }
-
-    // PED writeKey include TMK,TPK,TAK,TDk
-    // ===============================================================================================================
-    private fun writeKey(
-        ped: IPed,
-        srcKeyType: EPedKeyType?,
-        srcKeyIndex: Byte,
-        destKeyType: EPedKeyType?,
-        destkeyIndex: Byte,
-        destKeyValue: ByteArray?,
-        checkMode: ECheckMode?,
-        checkBuf: ByteArray?
-    ): Boolean {
-        try {
-            ped.writeKey(
-                srcKeyType,
-                srcKeyIndex,
-                destKeyType,
-                destkeyIndex,
-                destKeyValue,
-                checkMode,
-                checkBuf
-            )
-            Log.i(TAG, "writeKey: Key successfully loaded")
-            return true
-        } catch (e: PedDevException) {
-            e.printStackTrace()
-            Log.e(TAG, "Error writeKey: $e")
-        }
-        return false
-    }
-
-    private fun getPinBlock(ped: IPed?, dataIn: ByteArray?): ByteArray? {
-        try {
-            val result =
-                ped?.getPinBlock(1.toByte(), "0,4,6", dataIn, EPinBlockMode.ISO9564_0, 60000)
-
-            println("getPinBlock")
-            return result
-        } catch (e: PedDevException) {
-            e.printStackTrace()
-            println("getPinBlock$e")
-            return null
-        }
     }
 
 

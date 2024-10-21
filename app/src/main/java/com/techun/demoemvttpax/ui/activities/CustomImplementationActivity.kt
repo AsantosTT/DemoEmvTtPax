@@ -713,14 +713,19 @@ class CustomImplementationActivity : AppCompatActivity(), DetectCardContract.Vie
     override fun onPiccDetectOK() {
         Utils.logsUtils("onPiccDetectOK", 0)
         currentTxnType = Utils.TXN_TYPE_PICC
-        if (transProcessPresenter != null) {
+        transProcessPresenter!!.startOnlinePin()
+
+       /* if (transProcessPresenter != null) {
             if (isSecondTap) { //visa card and other card(not contain master card) 2nd detect card
                 isSecondTap = false
-                transProcessPresenter?.completeClssTrans(glStatus.GetInstance().issuerRspData)
+                //transProcessPresenter?.completeClssTrans(glStatus.GetInstance().issuerRspData)
+//                processCvm()
+                transProcessPresenter!!.startOnlinePin()
+
             } else {
                 transProcessPresenter?.startClssTrans() // first time detect card finish
             }
-        }
+        }*/
     }
 
     override fun onDetectError(errorCode: DetectCardResult.ERetCode?) {

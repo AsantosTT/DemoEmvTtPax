@@ -30,6 +30,7 @@ import com.techun.demoemvttpax.utils.keyboard.currency.CurrencyConverter
 import com.techun.demoemvttpax.utils.keyboard.text.EditorActionListener
 import com.techun.demoemvttpax.utils.keyboard.text.EnterAmountTextWatcher
 import com.techun.demoemvttpax.utils.toast
+import com.tecnologiatransaccional.ttpaxsdk.TTPaxApi
 import com.tecnologiatransaccional.ttpaxsdk.neptune.Sdk
 import com.tecnologiatransaccional.ttpaxsdk.neptune.Sdk.Companion.instance
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.contact.EmvProcess
@@ -54,6 +55,7 @@ import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.xmlparam.entity.c
 import com.tecnologiatransaccional.ttpaxsdk.utils.Utils.TXN_TYPE_ICC
 import com.tecnologiatransaccional.ttpaxsdk.utils.Utils.TXN_TYPE_PICC
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 
 @AndroidEntryPoint
@@ -66,6 +68,9 @@ class   MvvmSdkImplActivity : AppCompatActivity() {
     private var pinText: TextView? = null
     private var mEnterPinPopWindow: PopupWindow? = null
     private var currentTxnType: Int = TXN_TYPE_ICC
+
+    @Inject
+    lateinit var ttPaxApi: TTPaxApi
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -1187,12 +1192,22 @@ class   MvvmSdkImplActivity : AppCompatActivity() {
     }
 
     private fun getFirstGACTag() {
+        var data52 = com.pax.jemv.clcommon.ByteArray()
+        var ret52: Int = EmvProcess.getInstance().getTlv(0x52, data52)
+        if (ret52 == RetCode.EMV_OK) {
+            val dataArr = ByteArray(data52.length)
+            System.arraycopy(data52.data, 0, dataArr, 0, data52.length)
+            val firstGacTVR = ConvertHelper.getConvert().bcdToStr(dataArr)
+            Log.i("getFirstGACTag", "data52: $firstGacTVR")
+        }
+
         var data = com.pax.jemv.clcommon.ByteArray()
         var ret: Int = EmvProcess.getInstance().getTlv(0x95, data)
         if (ret == RetCode.EMV_OK) {
             val dataArr = ByteArray(data.length)
             System.arraycopy(data.data, 0, dataArr, 0, data.length)
             val firstGacTVR = ConvertHelper.getConvert().bcdToStr(dataArr)
+            Log.i("getFirstGACTag", "firstGacTVR: $firstGacTVR")
         }
 
         data = com.pax.jemv.clcommon.ByteArray()
@@ -1201,6 +1216,7 @@ class   MvvmSdkImplActivity : AppCompatActivity() {
             val dataArr = ByteArray(data.length)
             System.arraycopy(data.data, 0, dataArr, 0, data.length)
             val firstGacTSI = ConvertHelper.getConvert().bcdToStr(dataArr)
+            Log.i("getFirstGACTag", "firstGacTSI: $firstGacTSI")
         }
 
         data = com.pax.jemv.clcommon.ByteArray()
@@ -1209,13 +1225,13 @@ class   MvvmSdkImplActivity : AppCompatActivity() {
             val dataArr = ByteArray(data.length)
             System.arraycopy(data.data, 0, dataArr, 0, data.length)
             val firstGacCID = ConvertHelper.getConvert().bcdToStr(dataArr)
+            Log.i("getFirstGACTag", "firstGacCID: $firstGacCID")
         }
     }
 
     private fun logs(msg: String?) {
         Log.d("logs-demo-app", "$msg")
     }
-
 
     private fun enterPinProcess(isICC: Boolean, bOnlinePin: Boolean, leftTimes: Int) {
         if (enterPinTask != null) {
@@ -1256,14 +1272,14 @@ class   MvvmSdkImplActivity : AppCompatActivity() {
                 get() = getEnteredPin()
 
             override fun onEnterPinFinish(enterPinResult: EnterPinResult?) {
+                getFirstGACTag()
+
                 if (enterPinResult?.ret == EnterPinResult.RET_OFFLINE_PIN_READY) {
                     enterPinRet = EnterPinResult.RET_SUCC
                 } else {
                     enterPinRet = enterPinResult?.ret!!
                     onEnterPinFinishUI(enterPinRet)
-                    Log.i(
-                        "onEnterPinFinish", "onEnterPinFinish, enterPinRet:$enterPinRet"
-                    )
+                    Log.i("onEnterPinFinish", "onEnterPinFinish, enterPinRet:$enterPinRet")
                 }
 
                 //enterPinCv.open()

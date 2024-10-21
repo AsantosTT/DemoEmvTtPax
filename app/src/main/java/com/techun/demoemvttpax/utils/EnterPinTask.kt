@@ -95,7 +95,7 @@ class EnterPinTask {
     private fun enterOnlinePin(panBlock: String) {
         val pinResult = EnterPinResult()
         try {
-            //ped.getDUKPTPin()
+//            ped.getDUKPTPin()
             ped.setIntervalTime(1, 1)
             ped.setInputPinListener { eKeyCode: EKeyCode ->
                 var temp: String
@@ -111,7 +111,7 @@ class EnterPinTask {
                 listener!!.onUpdatePinLen(temp)
             }
             val pinBlock = PedApiUtils.getPinBlock(panBlock, 60 * 1000)
-            if (pinBlock == null || pinBlock.size == 0) {
+            if (pinBlock == null || pinBlock.isEmpty()) {
                 pinResult.ret = RetCode.EMV_NO_PASSWORD
             } else {
                 pinResult.ret = EnterPinResult.RET_SUCC
