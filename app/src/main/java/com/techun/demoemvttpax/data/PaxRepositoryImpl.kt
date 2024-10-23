@@ -11,6 +11,7 @@ import com.pax.dal.entity.EPedType
 import com.pax.dal.exceptions.PedDevException
 import com.techun.demoemvttpax.domain.repository.PaxRepository
 import com.techun.demoemvttpax.utils.DataState
+import com.techun.demoemvttpax.utils.writeKeys
 import com.tecnologiatransaccional.ttpaxsdk.TTPaxApi
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.PedApiUtils
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.interfaces.IConvert
@@ -50,87 +51,104 @@ class PaxRepositoryImpl @Inject constructor(
                     paramPayWave = paywaveParams,
                     paramPayPassAids = paypassParam,
                     onSuccess = {
-                        val ped = sdk.getDal(context)?.getPed(EPedType.INTERNAL)
+                        //Add TIK & KSN
+                        val tik16Clr = byteArrayOf(
+                            0x6A.toByte(),
+                            0xC2.toByte(),
+                            0x92.toByte(),
+                            0xFA.toByte(),
+                            0xA1.toByte(),
+                            0x31.toByte(),
+                            0x5B.toByte(),
+                            0x4D.toByte(),
+                            0x85.toByte(),
+                            0x8A.toByte(),
+                            0xB3.toByte(),
+                            0xA3.toByte(),
+                            0xD7.toByte(),
+                            0xD5.toByte(),
+                            0x93.toByte(),
+                            0x3A.toByte()
+                        )
+                        val ksn = byteArrayOf(
+                            0xff.toByte(),
+                            0xff.toByte(),
+                            0x98.toByte(),
+                            0x76.toByte(),
+                            0x54.toByte(),
+                            0x32.toByte(),
+                            0x10.toByte(),
+                            0xE0.toByte(),
+                            0x00.toByte(),
+                            0x00.toByte()
+                        )
 
                         PedApiUtils.eraseKey()
-                        PedApiUtils.writeTPK(0x02.toByte())
 
-                     /*   ped?.let {
-                            //Add TIK & KSN
-                            val tik16Clr = byteArrayOf(
-                                0x6A.toByte(),
-                                0xC2.toByte(),
-                                0x92.toByte(),
-                                0xFA.toByte(),
-                                0xA1.toByte(),
-                                0x31.toByte(),
-                                0x5B.toByte(),
-                                0x4D.toByte(),
-                                0x85.toByte(),
-                                0x8A.toByte(),
-                                0xB3.toByte(),
-                                0xA3.toByte(),
-                                0xD7.toByte(),
-                                0xD5.toByte(),
-                                0x93.toByte(),
-                                0x3A.toByte()
-                            )
-                            val ksn = byteArrayOf(
-                                0xff.toByte(),
-                                0xff.toByte(),
-                                0x98.toByte(),
-                                0x76.toByte(),
-                                0x54.toByte(),
-                                0x32.toByte(),
-                                0x10.toByte(),
-                                0xE0.toByte(),
-                                0x00.toByte(),
-                                0x00.toByte()
-                            )
+                        val status = PedApiUtils().writeKeys(
+                            groupIndex = 1.toByte(),
+                            srcKeyIndex = 0.toByte(),
+                            keyValue = tik16Clr,
+                            ksn = ksn,
+                            checkMode = ECheckMode.KCV_NONE,
+                            checkBuf = null as ByteArray?
+                        )
 
-                            val verString: Boolean = it.writeTIK(tik16Clr, ksn)
+                        Log.i(TAG, "initSdk: writeKeys status $status")
 
-                            if (verString) {
-                                val num = "4391242409331300"
-                                val panArray: ByteArray = num.substring(num.length - 13, num.length - 1).toByteArray()
-                                val dataIn = ByteArray(16)
-                                dataIn[0] = 0x00
-                                dataIn[1] = 0x00
-                                dataIn[2] = 0x00
-                                dataIn[3] = 0x00
-                                System.arraycopy(panArray, 0, dataIn, 4, panArray.size)
 
-                                val result: DUKPTResult? = it.getDUKPTPin(dataIn)
-                                if (result != null) {
-                                    Log.i(
-                                        "ss",
-                                        "ksn:" + ConvertHelper.getConvert().bcdToStr(result.ksn)
-                                    )
-                                    Log.i(
-                                        "ss",
-                                        "Pinblock:" + ConvertHelper.getConvert().bcdToStr(result.result)
-                                    )
 
-                                    //ksn Increment
-                                    ped.incDUKPTKsn(0x01.toByte())
 
-                                    val verString = it.incDUKPTKsn()
-                                    if (verString) {
-                                        Log.i(TAG, "initSdk: inDUPKTKsn  success")
+                        /*
+                                                 val ped = sdk.getDal(context)?.getPed(EPedType.INTERNAL)
 
-                                       val data = com.pax.jemv.clcommon.ByteArray()
-                                       val ret = EmvProcess.getInstance().getTlv(0x52, data)
 
-                                        if (ret == RetCode.EMV_OK) {
-                                            val dataArr = ByteArray(data.length)
-                                            System.arraycopy(data.data, 0, dataArr, 0, data.length)
-                                            val firstGacTSI = ConvertHelper.getConvert().bcdToStr(dataArr)
-                                            Log.i("getFirstGACTag", "firstGacTSI: $firstGacTSI")
-                                        } else {
-                                            Log.e(TAG, "initSdk: Fallo")
-                                        }
+                         ped?.let {
 
-                                        *//*val num = "4391242409331300"
+
+                               val verString: Boolean = it.writeTIK(tik16Clr, ksn)
+
+                               if (verString) {
+                                   val num = "4391242409331300"
+                                   val panArray: ByteArray = num.substring(num.length - 13, num.length - 1).toByteArray()
+                                   val dataIn = ByteArray(16)
+                                   dataIn[0] = 0x00
+                                   dataIn[1] = 0x00
+                                   dataIn[2] = 0x00
+                                   dataIn[3] = 0x00
+                                   System.arraycopy(panArray, 0, dataIn, 4, panArray.size)
+
+                                   val result: DUKPTResult? = it.getDUKPTPin(dataIn)
+                                   if (result != null) {
+                                       Log.i(
+                                           "ss",
+                                           "ksn:" + ConvertHelper.getConvert().bcdToStr(result.ksn)
+                                       )
+                                       Log.i(
+                                           "ss",
+                                           "Pinblock:" + ConvertHelper.getConvert().bcdToStr(result.result)
+                                       )
+
+                                       //ksn Increment
+                                       ped.incDUKPTKsn(0x01.toByte())
+
+                                       val verString = it.incDUKPTKsn()
+                                       if (verString) {
+                                           Log.i(TAG, "initSdk: inDUPKTKsn  success")
+
+                                          val data = com.pax.jemv.clcommon.ByteArray()
+                                          val ret = EmvProcess.getInstance().getTlv(0x52, data)
+
+                                           if (ret == RetCode.EMV_OK) {
+                                               val dataArr = ByteArray(data.length)
+                                               System.arraycopy(data.data, 0, dataArr, 0, data.length)
+                                               val firstGacTSI = ConvertHelper.getConvert().bcdToStr(dataArr)
+                                               Log.i("getFirstGACTag", "firstGacTSI: $firstGacTSI")
+                                           } else {
+                                               Log.e(TAG, "initSdk: Fallo")
+                                           }
+
+                                           *//*val num = "4391242409331300"
                                         val panArray: ByteArray = num.substring(num.length - 13, num.length - 1).toByteArray()
                                         val dataIn = ByteArray(16)
                                         dataIn[0] = 0x00

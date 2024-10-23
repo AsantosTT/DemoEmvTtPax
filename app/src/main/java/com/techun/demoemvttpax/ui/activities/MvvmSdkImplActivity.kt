@@ -17,18 +17,18 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import com.pax.dal.entity.ECheckMode
-import com.pax.dal.entity.EPedKeyType
 import com.pax.dal.entity.EReaderType
 import com.pax.jemv.clcommon.RetCode
 import com.techun.demoemvttpax.R
 import com.techun.demoemvttpax.databinding.ActivityMvvmSdkImplBinding
 import com.techun.demoemvttpax.ui.viewmodel.PaxViewModel
 import com.techun.demoemvttpax.utils.DataState
-import com.techun.demoemvttpax.utils.EnterPinTask
+import com.techun.demoemvttpax.utils.incDUKPTKsn
 import com.techun.demoemvttpax.utils.keyboard.currency.CurrencyConverter
 import com.techun.demoemvttpax.utils.keyboard.text.EditorActionListener
 import com.techun.demoemvttpax.utils.keyboard.text.EnterAmountTextWatcher
+import com.techun.demoemvttpax.utils.pinutils.DUKPTResult
+import com.techun.demoemvttpax.utils.pinutils.EnterPinTask
 import com.techun.demoemvttpax.utils.toast
 import com.tecnologiatransaccional.ttpaxsdk.TTPaxApi
 import com.tecnologiatransaccional.ttpaxsdk.neptune.Sdk
@@ -39,6 +39,7 @@ import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.CardInfoUti
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.ConvertHelper
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.EEnterPinType
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.EnterPinResult
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.PedApiUtils
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.ScreenUtils
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.glStatus
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.interfaces.IConvert
@@ -59,7 +60,7 @@ import javax.inject.Inject
 
 
 @AndroidEntryPoint
-class   MvvmSdkImplActivity : AppCompatActivity() {
+class MvvmSdkImplActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMvvmSdkImplBinding
     private val viewModel: PaxViewModel by viewModels()
     private var enterPinTask: EnterPinTask? = null
@@ -1282,12 +1283,27 @@ class   MvvmSdkImplActivity : AppCompatActivity() {
                     Log.i("onEnterPinFinish", "onEnterPinFinish, enterPinRet:$enterPinRet")
                 }
 
-                //enterPinCv.open()
+//                enterPinCv.open()
+            }
+
+            override fun onEnterDUKPTPinFinish(dukptResult: DUKPTResult?) {
+                Log.i(
+                    "enterPinProcess",
+                    "onEnterDUKPTPinFinish: Code(${dukptResult?.codeResult}), Pinblock(${
+                        ConvertHelper.getConvert().bcdToStr(dukptResult?.result)
+                    }), KSN(${ConvertHelper.getConvert().bcdToStr(dukptResult?.ksn)})"
+                )
+
+                val valueReturnOfIncKsn = PedApiUtils().incDUKPTKsn()
+                Log.i("onEnterDUKPTPinFinish", "incDUKPTKsn: Value($valueReturnOfIncKsn)")
+
+                onEnterPinFinishUI(dukptResult?.codeResult!!)
             }
 
         })
         onStartEnterPin(enterPinPrompt)
-        enterPinTask!!.startEnterPin()
+//        enterPinTask!!.startEnterPin()
+        enterPinTask!!.startEnterDUKPPin()
     }
 
     private fun onEnterPinFinishUI(pinResult: Int) {
