@@ -134,10 +134,10 @@ fun PedApiUtils.writeKeys(
  *
  * @throws PedDevException
  */
-fun PedApiUtils.incDUKPTKsn(): Boolean {
+fun PedApiUtils.incDUKPTKsn(groupIndex: Byte = 0x01.toByte()): Boolean {
     Sdk.instance?.getDal(App.mBaseApplication)?.let { dal ->
         try {
-            dal.getPed(EPedType.INTERNAL).incDUKPTKsn(0x01.toByte())
+            dal.getPed(EPedType.INTERNAL).incDUKPTKsn(groupIndex)
             Log.i(TAG, "incDUKPTKsn")
             return true
         } catch (e: PedDevException) {
