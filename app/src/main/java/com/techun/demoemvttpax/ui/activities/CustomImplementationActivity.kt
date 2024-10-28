@@ -57,7 +57,9 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class CustomImplementationActivity : AppCompatActivity(), DetectCardContract.View,
+class CustomImplementationActivity :
+    AppCompatActivity(),
+    DetectCardContract.View,
     View.OnClickListener {
 
     //Printer

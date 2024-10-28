@@ -113,8 +113,7 @@ fun PedApiUtils.writeKeys(
 ): Boolean {
 
     Sdk.instance?.getDal(App.mBaseApplication)?.let { dal ->
-        dal.getPed(EPedType.INTERNAL)
-            .writeTIK(groupIndex, srcKeyIndex, keyValue, ksn, checkMode, checkBuf)
+        dal.getPed(EPedType.INTERNAL).writeTIK(groupIndex, srcKeyIndex, keyValue, ksn, checkMode, checkBuf)
         return true
     } ?: run {
         return false

@@ -1295,6 +1295,7 @@ class MvvmSdkImplActivity : AppCompatActivity() {
                 )
 
                 val valueReturnOfIncKsn = PedApiUtils().incDUKPTKsn()
+
                 Log.i("onEnterDUKPTPinFinish", "incDUKPTKsn: Value($valueReturnOfIncKsn)")
 
                 onEnterPinFinishUI(dukptResult?.codeResult!!)
