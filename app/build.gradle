@@ -51,7 +51,7 @@ android {
 
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar", "*.aar"])
-    implementation files('libs/ttpaxsdkv3.0.2_release.aar')
+    implementation files('libs/ttpaxsdkv3.0.4.aar')
 
     implementation 'androidx.core:core-ktx:1.10.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'

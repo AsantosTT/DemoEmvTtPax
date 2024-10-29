@@ -39,9 +39,11 @@
         android:theme="@style/Theme.DemoEmvTtPax"
         tools:ignore="Pro"
         tools:targetApi="31">
+
         <activity
-            android:name=".ui.activities.MvvmSdkImplActivity"
+            android:name=".CustomImplementationActivity"
             android:exported="true">
+
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -50,18 +52,7 @@
             </intent-filter>
 
         </activity>
-        <activity
-            android:name=".ui.activities.CustomImplementationActivity"
-            android:exported="true" >
 
-        </activity>
-
-        <activity
-            android:name=".ui.activities.MainActivity"
-            android:exported="true" >
-
-
-        </activity>
 
     </application>
 

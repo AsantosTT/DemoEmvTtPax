@@ -1,34 +1,17 @@
 package com.techun.demoemvttpax.utils
 
-import android.app.Activity
-import android.content.Intent
 import android.util.Log
-import android.widget.Toast
 import com.pax.dal.IPed
 import com.pax.dal.entity.ECheckMode
 import com.pax.dal.entity.EDUKPTPinMode
 import com.pax.dal.entity.EPedType
 import com.pax.dal.exceptions.PedDevException
-import com.techun.demoemvttpax.data.TAG
 import com.techun.demoemvttpax.utils.pinutils.DUKPTResult
 import com.tecnologiatransaccional.ttpaxsdk.App
 import com.tecnologiatransaccional.ttpaxsdk.neptune.Sdk
 import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.utils.PedApiUtils
 
-
-inline fun <reified T : Activity> Activity.goToActivity(
-    noinline init: Intent.() -> Unit = {}, finish: Boolean = false
-) {
-    val intent = Intent(this, T::class.java)
-    intent.init()
-    startActivity(intent)
-    if (finish) finish()
-}
-
-
-fun Activity.toast(text: String, length: Int = Toast.LENGTH_SHORT) {
-    Toast.makeText(this, text, length).show()
-}
+const val TAG = "PedApiUtils"
 
 
 /**
@@ -113,7 +96,8 @@ fun PedApiUtils.writeKeys(
 ): Boolean {
 
     Sdk.instance?.getDal(App.mBaseApplication)?.let { dal ->
-        dal.getPed(EPedType.INTERNAL).writeTIK(groupIndex, srcKeyIndex, keyValue, ksn, checkMode, checkBuf)
+        dal.getPed(EPedType.INTERNAL)
+            .writeTIK(groupIndex, srcKeyIndex, keyValue, ksn, checkMode, checkBuf)
         return true
     } ?: run {
         return false
