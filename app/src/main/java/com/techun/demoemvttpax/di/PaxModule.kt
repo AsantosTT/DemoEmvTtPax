@@ -2,6 +2,7 @@ package com.techun.demoemvttpax.di
 
 import android.content.Context
 import com.pax.dal.ICardReaderHelper
+import com.techun.demoemvttpax.data.IEmvTransProcessListenerImpl
 import com.techun.demoemvttpax.data.NeptunePollingPresenterImpl
 import com.techun.demoemvttpax.data.PaxRepositoryImpl
 import com.techun.demoemvttpax.data.TransProcessContractImpl
@@ -9,6 +10,7 @@ import com.techun.demoemvttpax.domain.repository.DetectCardContractRepository
 import com.techun.demoemvttpax.domain.repository.PaxRepository
 import com.techun.demoemvttpax.domain.repository.TransProcessContractRepository
 import com.tecnologiatransaccional.ttpaxsdk.TTPaxApi
+import com.tecnologiatransaccional.ttpaxsdk.sdk_pax.module_emv.process.contact.IEmvTransProcessListener
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -22,7 +24,8 @@ import javax.inject.Singleton
 object PaxModule {
     @Provides
     @Singleton
-    fun providePaxRepository(sdk: TTPaxApi): PaxRepository = PaxRepositoryImpl(sdk)
+    fun providePaxRepository(@ApplicationContext context: Context, sdk: TTPaxApi): PaxRepository =
+        PaxRepositoryImpl(context, sdk)
 
 
     @Provides
@@ -32,8 +35,17 @@ object PaxModule {
     ): DetectCardContractRepository = NeptunePollingPresenterImpl(app, cardReaderHelper, sdk)
 
     @Provides
+    fun provideMyEventListener(listenerImpl: IEmvTransProcessListenerImpl): IEmvTransProcessListener {
+        return listenerImpl
+    }
+
+    @Provides
     @Singleton
     fun provideTransProcessContractRepository(
-        @ApplicationContext app: Context, sdk: TTPaxApi
-    ): TransProcessContractRepository = TransProcessContractImpl(app, sdk)
+        @ApplicationContext app: Context,
+        sdk: TTPaxApi,
+        iEmvTransProcessListener: IEmvTransProcessListener
+    ): TransProcessContractRepository = TransProcessContractImpl(app, sdk, iEmvTransProcessListener)
+
+
 }
